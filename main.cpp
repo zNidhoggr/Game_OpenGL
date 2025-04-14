@@ -11,11 +11,31 @@
 #include <memory>
 #include <algorithm>
 
+//global functions
+float getTerrainHeight(float x, float z) {
+        float height = 0.0f;
+
+        // Colinas suaves
+        height += std::sin(x * 0.1f) * 0.5f;
+        height += std::cos(z * 0.1f) * 0.5f;
+
+        // Ru√≠do sutil
+        height += (std::sin(x * 0.3f + z * 0.5f) * 0.3f);
+
+        // Depress√£o simulando lago
+        float distToLakeCenter = std::sqrt((x - 5)*(x - 5) + (z - 5)*(z - 5));
+        if (distToLakeCenter < 4.0f) {
+            height -= (4.0f - distToLakeCenter) * 0.4f;
+        }
+
+        return height;
+    }
+
 // Forward declarations
 class GameObject;
 class SkillTree;
 
-// EnumeraÁ„o para tipos de objeto
+// Enumera√ß√£o para tipos de objeto
 enum ObjectType {
     TREE,
     ROCK,
@@ -25,13 +45,29 @@ enum ObjectType {
     NPC
 };
 
-// EnumeraÁ„o para tipos de habilidade
+// Enumera√ß√£o para tipos de habilidade
 enum SkillType {
     ATTACK,
     DEFENSE,
     MAGIC,
     SPEED
 };
+
+struct GrassPatch {
+    float x, z;     // centro
+    float radius;   // raio
+};
+
+struct TrailPoint {
+    float x, y, z;
+};
+
+//Variav√©is Globais
+std::vector<TrailPoint> trailCurvePoints;
+std::vector<TrailPoint> trailClearings;
+std::vector<TrailPoint> trailPoints;
+std::vector<GrassPatch> grassPatches;
+
 
 // Classe para gerenciar habilidades
 class Skill {
@@ -41,7 +77,7 @@ private:
     int level;
     int maxLevel;
     float value;      // valor do efeito da habilidade
-    std::vector<Skill*> prerequisites;  // Habilidades necess·rias para desbloquear esta
+    std::vector<Skill*> prerequisites;  // Habilidades necess√°rias para desbloquear esta
 
 public:
     Skill(const std::string& name, SkillType type, int maxLevel, float baseValue)
@@ -65,7 +101,7 @@ public:
 
         if (level < maxLevel) {
             level++;
-            value *= 1.2f;  // Aumento de 20% por nÌvel
+            value *= 1.2f;  // Aumento de 20% por n√≠vel
             return true;
         }
         return false;
@@ -79,7 +115,7 @@ public:
     float getValue() const { return value; }
 };
 
-// Classe para ·rvore de habilidades
+// Classe para √°rvore de habilidades
 class SkillTree {
 private:
     std::vector<std::unique_ptr<Skill>> skills;
@@ -87,25 +123,25 @@ private:
 
 public:
     SkillTree() : skillPoints(0) {
-        // CriaÁ„o de habilidades b·sicas
-        auto attackSkill = std::make_unique<Skill>("ForÁa de Ataque", ATTACK, 5, 5.0f);
-        auto defenseSkill = std::make_unique<Skill>("ResistÍncia", DEFENSE, 5, 3.0f);
-        auto magicSkill = std::make_unique<Skill>("Poder M·gico", MAGIC, 5, 4.0f);
+        // Cria√ß√£o de habilidades b√°sicas
+        auto attackSkill = std::make_unique<Skill>("For√ßa de Ataque", ATTACK, 5, 5.0f);
+        auto defenseSkill = std::make_unique<Skill>("Resist√™ncia", DEFENSE, 5, 3.0f);
+        auto magicSkill = std::make_unique<Skill>("Poder M√°gico", MAGIC, 5, 4.0f);
         auto speedSkill = std::make_unique<Skill>("Agilidade", SPEED, 5, 2.0f);
 
-        // Habilidades avanÁadas
-        auto criticalStrike = std::make_unique<Skill>("Golpe CrÌtico", ATTACK, 3, 10.0f);
-        auto healthRegen = std::make_unique<Skill>("RegeneraÁ„o", DEFENSE, 3, 2.0f);
+        // Habilidades avan√ßadas
+        auto criticalStrike = std::make_unique<Skill>("Golpe Cr√≠tico", ATTACK, 3, 10.0f);
+        auto healthRegen = std::make_unique<Skill>("Regenera√ß√£o", DEFENSE, 3, 2.0f);
         auto fireball = std::make_unique<Skill>("Bola de Fogo", MAGIC, 3, 15.0f);
         auto dodge = std::make_unique<Skill>("Esquiva", SPEED, 3, 5.0f);
 
-        // ConfiguraÁ„o de prÈ-requisitos
+        // Configura√ß√£o de pr√©-requisitos
         criticalStrike->addPrerequisite(attackSkill.get());
         healthRegen->addPrerequisite(defenseSkill.get());
         fireball->addPrerequisite(magicSkill.get());
         dodge->addPrerequisite(speedSkill.get());
 
-        // Adicionar habilidades ‡ ·rvore
+        // Adicionar habilidades √† √°rvore
         skills.push_back(std::move(attackSkill));
         skills.push_back(std::move(defenseSkill));
         skills.push_back(std::move(magicSkill));
@@ -156,10 +192,10 @@ public:
 // Classe base para todos os objetos do jogo
 class GameObject {
 protected:
-    float x, y, z;       // PosiÁ„o
+    float x, y, z;       // Posi√ß√£o
     float size;          // Tamanho
     ObjectType type;     // Tipo de objeto
-    bool active;         // Se est· ativo no mundo
+    bool active;         // Se est√° ativo no mundo
 
 public:
     GameObject(float x, float y, float z, float size, ObjectType type)
@@ -198,19 +234,19 @@ public:
 // Classe para o jogador
 class Player : public GameObject {
 private:
-    float rotY;          // RotaÁ„o em Y (direÁ„o que est· olhando)
+    float rotY;          // Rota√ß√£o em Y (dire√ß√£o que est√° olhando)
     float health;        // Vida do personagem
-    float maxHealth;     // Vida m·xima
-    int level;           // NÌvel do personagem
-    int experience;      // ExperiÍncia do personagem
-    int experienceToNextLevel;  // XP necess·rio para o prÛximo nÌvel
-    SkillTree skillTree; // ¡rvore de habilidades
+    float maxHealth;     // Vida m√°xima
+    int level;           // N√≠vel do personagem
+    int experience;      // Experi√™ncia do personagem
+    int experienceToNextLevel;  // XP necess√°rio para o pr√≥ximo n√≠vel
+    SkillTree skillTree; // √Årvore de habilidades
     float attackCooldown; // Tempo de espera entre ataques
     float attackTimer;    // Timer atual para atacar novamente
 
     // Constantes
-    const float MOVEMENT_SPEED = 0.1f;
-    const float ROTATION_SPEED = 5.0f;
+    static constexpr float MOVEMENT_SPEED = 0.1f;
+    static constexpr float ROTATION_SPEED = 5.0f;
 
 public:
     Player(float x, float y, float z)
@@ -235,13 +271,21 @@ public:
         glRotatef(rotY, 0.0f, 1.0f, 0.0f);
 
         // Definir cor do jogador
-        GLfloat playerColor[] = {0.8f, 0.2f, 0.2f};
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, playerColor);
+        GLfloat ambient[]  = {0.0f, 0.0f, 0.3f, 1.0f};   // sombra azul
+        GLfloat diffuse[]  = {0.1f, 0.5f, 0.8f, 0.8f};   //
+        GLfloat specular[] = {0.9f, 0.4f, 0.4f, 1.0f};   // reflexo rosado
+        GLfloat shininess  = 64.0f;
+
+        glDisable(GL_COLOR_MATERIAL);
+        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
 
         // Corpo do jogador
         glutSolidCube(0.6f);
 
-        // CabeÁa
+        // Cabe√ßa
         glPushMatrix();
         glTranslatef(0.0f, 0.5f, 0.0f);
         glutSolidSphere(0.2f, 10, 10);
@@ -270,12 +314,12 @@ public:
         z -= MOVEMENT_SPEED * std::sin(rotY * M_PI / 180.0f);
     }
 
-    void rotateLeft() {
-        rotY -= ROTATION_SPEED;
+    void rotateRight(float delta = ROTATION_SPEED) {
+        rotY += delta;
     }
 
-    void rotateRight() {
-        rotY += ROTATION_SPEED;
+    void rotateLeft(float delta = ROTATION_SPEED) {
+        rotY -= delta;
     }
 
     bool attack() {
@@ -287,9 +331,9 @@ public:
     }
 
     void takeDamage(float amount) {
-        // Aplicar reduÁ„o de dano baseado na habilidade de defesa
+        // Aplicar redu√ß√£o de dano baseado na habilidade de defesa
         float defenseValue = skillTree.getSkillValue(DEFENSE);
-        float damageReduction = defenseValue / (defenseValue + 100.0f);  // FÛrmula de reduÁ„o de dano
+        float damageReduction = defenseValue / (defenseValue + 100.0f);  // F√≥rmula de redu√ß√£o de dano
         amount *= (1.0f - damageReduction);
 
         health -= amount;
@@ -311,15 +355,15 @@ public:
     void levelUp() {
         level++;
         experience -= experienceToNextLevel;
-        experienceToNextLevel = level * 100;  // XP Linear: prÛximo nÌvel = nÌvel atual * 100
+        experienceToNextLevel = level * 100;  // XP Linear: pr√≥ximo n√≠vel = n√≠vel atual * 100
         maxHealth += 10.0f;
-        health = maxHealth;  // Recupera vida ao subir de nÌvel
+        health = maxHealth;  // Recupera vida ao subir de n√≠vel
         skillTree.addSkillPoint();  // Ganha um ponto de habilidade
 
-        std::cout << "NÌvel aumentado para " << level << "! Ganhou um ponto de habilidade." << std::endl;
+        std::cout << "N√≠vel aumentado para " << level << "! Ganhou um ponto de habilidade." << std::endl;
     }
 
-    // Getters e setters especÌficos do jogador
+    // Getters e setters espec√≠ficos do jogador
     float getRotY() const { return rotY; }
     float getHealth() const { return health; }
     float getMaxHealth() const { return maxHealth; }
@@ -386,9 +430,10 @@ public:
         isCombatActive = (dist < detectionRange);
 
         if (isCombatActive && dist > attackRange) {
-            // Mover em direÁ„o ao jogador
+            // Mover em dire√ß√£o ao jogador
             x += (dx / dist) * moveSpeed * deltaTime * 60.0f;
             z += (dz / dist) * moveSpeed * deltaTime * 60.0f;
+            y = getTerrainHeight(x, z) + 0.3f;
         }
     }
 
@@ -423,8 +468,16 @@ public:
         glTranslatef(x, y, z);
 
         // Definir cor do inimigo
-        GLfloat enemyColor[] = {0.8f, 0.1f, 0.1f};
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, enemyColor);
+        GLfloat ambient[]  = {0.3f, 0.0f, 0.0f, 1.0f};   // sombra avermelhada
+        GLfloat diffuse[]  = {0.8f, 0.1f, 0.1f, 1.0f};   // vermelho vivo
+        GLfloat specular[] = {0.9f, 0.4f, 0.4f, 1.0f};   // reflexo rosado
+        GLfloat shininess  = 64.0f;
+
+        glDisable(GL_COLOR_MATERIAL);
+        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
 
         // Corpo
         glPushMatrix();
@@ -432,7 +485,7 @@ public:
         glutSolidCube(0.8f);
         glPopMatrix();
 
-        // CabeÁa
+        // Cabe√ßa
         glPushMatrix();
         glTranslatef(0.0f, size * 0.6f, 0.0f);
         glutSolidSphere(size * 0.3f, 8, 8);
@@ -445,10 +498,10 @@ public:
     }
 
     void drawHealthBar() {
-        // Desativar iluminaÁ„o para desenhar a barra de vida
+        // Desativar ilumina√ß√£o para desenhar a barra de vida
         glDisable(GL_LIGHTING);
 
-        // Calcular posiÁ„o da barra acima do inimigo
+        // Calcular posi√ß√£o da barra acima do inimigo
         float barWidth = size * 1.5f;
         float barHeight = size * 0.2f;
         float barPosY = size * 1.2f;
@@ -474,7 +527,7 @@ public:
         glVertex3f(-barWidth/2, barPosY + barHeight, 0);
         glEnd();
 
-        // Reativar iluminaÁ„o
+        // Reativar ilumina√ß√£o
         glEnable(GL_LIGHTING);
     }
 
@@ -486,7 +539,7 @@ public:
     float getExperienceValue() const { return level * 20.0f; }
 };
 
-// Classe para objetos est·ticos (·rvores, pedras, casas)
+// Classe para objetos est√°ticos (√°rvores, pedras, casas)
 class StaticObject : public GameObject {
 private:
     GLfloat color[3];
@@ -512,7 +565,17 @@ public:
         switch (type) {
             case TREE: {
                 // Tronco
-                glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, trunkColor);
+                GLfloat ambient[]  = {0.2f, 0.1f, 0.0f, 1.0f};
+                GLfloat diffuse[]  = {0.5f, 0.3f, 0.1f, 1.0f};
+                GLfloat specular[] = {0.1f, 0.05f, 0.02f, 1.0f};
+                GLfloat shininess  = 10.0f;
+
+                glDisable(GL_COLOR_MATERIAL);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+
                 glPushMatrix();
                 glScalef(0.3f, 1.0f, 0.3f);
                 glTranslatef(0.0f, 0.5f, 0.0f);
@@ -520,7 +583,17 @@ public:
                 glPopMatrix();
 
                 // Copa
-                glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, leavesColor);
+                GLfloat topambient[]  = {0.1f, 0.2f, 0.1f, 1.0f};
+                GLfloat topdiffuse[]  = {0.2f, 0.6f, 0.2f, 1.0f};
+                GLfloat topspecular[] = {0.05f, 0.1f, 0.05f, 1.0f};
+                GLfloat topshininess  = 5.0f;
+
+                glDisable(GL_COLOR_MATERIAL);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, topambient);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, topdiffuse);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, topspecular);
+                glMaterialf(GL_FRONT, GL_SHININESS, topshininess);
+
                 glPushMatrix();
                 glTranslatef(0.0f, size * 0.8f, 0.0f);
                 glutSolidSphere(size * 0.6f, 10, 10);
@@ -529,7 +602,17 @@ public:
             }
 
             case ROCK: {
-                glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
+                GLfloat ambient[]  = {0.2f, 0.2f, 0.2f, 1.0f};
+                GLfloat diffuse[]  = {0.5f, 0.5f, 0.5f, 1.0f};
+                GLfloat specular[] = {0.1f, 0.1f, 0.1f, 1.0f};
+                GLfloat shininess  = 5.0f;
+
+                glDisable(GL_COLOR_MATERIAL);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+
                 glScalef(size, size * 0.7f, size);
                 glutSolidSphere(0.5f, 10, 10);
                 break;
@@ -537,7 +620,17 @@ public:
 
             case HOUSE: {
                 // Base da casa
-                glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
+                GLfloat ambient[]  = {0.3f, 0.2f, 0.1f, 1.0f};
+                GLfloat diffuse[]  = {0.6f, 0.4f, 0.2f, 1.0f};
+                GLfloat specular[] = {0.1f, 0.1f, 0.1f, 1.0f};
+                GLfloat shininess  = 10.0f;
+
+                glDisable(GL_COLOR_MATERIAL);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+
                 glPushMatrix();
                 glScalef(size, size * 0.8f, size);
                 glTranslatef(0.0f, 0.5f, 0.0f);
@@ -545,7 +638,16 @@ public:
                 glPopMatrix();
 
                 // Telhado
-                glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, roofColor);
+                GLfloat roofAmbient[]  = {0.2f, 0.2f, 0.2f, 1.0f};
+                GLfloat roofDiffuse[]  = {0.5f, 0.5f, 0.5f, 1.0f};
+                GLfloat roofSpecular[] = {0.05f, 0.05f, 0.05f, 1.0f};
+                GLfloat roofShine      = 8.0f;
+
+                glMaterialfv(GL_FRONT, GL_AMBIENT, roofAmbient);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, roofDiffuse);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, roofSpecular);
+                glMaterialf(GL_FRONT, GL_SHININESS, roofShine);
+
                 glPushMatrix();
                 glTranslatef(0.0f, size * 0.8f, 0.0f);
                 glBegin(GL_TRIANGLES);
@@ -570,11 +672,11 @@ public:
             }
 
             case ITEM: {
-                // Desenhar um item colet·vel
+                // Desenhar um item colet√°vel
                 glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
                 glutSolidSphere(size * 0.5f, 8, 8);
 
-                // RotaÁ„o para efeito de flutuaÁ„o
+                // Rota√ß√£o para efeito de flutua√ß√£o
                 static float angle = 0.0f;
                 angle += 0.5f;
                 glRotatef(angle, 0.0f, 1.0f, 0.0f);
@@ -593,6 +695,58 @@ public:
     }
 };
 
+
+class GrassBlade : public GameObject {
+public:
+    GrassBlade(float x, float y, float z)
+        : GameObject(x, y, z, 0.1f, ObjectType::ITEM) {}  // Pode usar outro tipo
+
+    void draw() override {
+        glPushMatrix();
+        glTranslatef(x, y, z);
+
+        // Calcular √¢ngulo de balan√ßo baseado no tempo
+        float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+        float sway = sin(time * 2.0f + x * 0.5f + z * 0.5f) * 10.0f; // √¢ngulo de oscila√ß√£o em graus
+
+        // Aplicar rota√ß√£o suave para simular o vento
+        glRotatef(sway, 0.0f, 0.0f, 1.0f);  // Rotaciona ao redor do eixo Z (ou tente eixo X para variar)
+
+        // Material da grama
+        GLfloat ambient[]  = {0.0f, 0.2f, 0.0f, 1.0f};
+        GLfloat diffuse[]  = {0.2f, 0.8f, 0.2f, 1.0f};
+        GLfloat specular[] = {0.0f, 0.05f, 0.0f, 1.0f};
+        GLfloat shininess  = 5.0f;
+
+        glDisable(GL_COLOR_MATERIAL);
+        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+
+        // Desenhar folhas de grama
+        glBegin(GL_TRIANGLES);
+
+        float h = 0.3f;
+        float w = 0.02f;
+
+        for (int i = 0; i < 3; ++i) {
+            float angle = i * 60.0f * M_PI / 180.0f;
+            float dx = std::cos(angle) * w;
+            float dz = std::sin(angle) * w;
+
+            glVertex3f(0.0f, 0.0f, 0.0f);
+            glVertex3f(dx, h, dz);
+            glVertex3f(-dx, 0.0f, -dz);
+        }
+
+        glEnd();
+        glPopMatrix();
+    }
+
+};
+
+
 // Classe para gerenciamento do jogo
 class Game {
 private:
@@ -603,37 +757,182 @@ private:
     float cameraHeight;
     float cameraAngle;
 
-    int gameMode;  // 0: exploraÁ„o, 1: combate, 2: menu de habilidades
+    int gameMode;  // 0: explora√ß√£o, 1: combate, 2: menu de habilidades
 
     const float WORLD_SIZE = 20.0f;
     float lastFrameTime;
     float deltaTime;
 
+    // Vari√°veis para controle do mouse
+    int lastMouseX, lastMouseY;
+    bool mouseLeftDown;
+    bool mouseRightDown;
+    float mouseSensitivity;
+
+    // Para mouse picking na √°rvore de habilidades
+    struct SkillNode {
+        float x, y;          // Posi√ß√£o na tela
+        float radius;        // Raio do n√≥
+        int skillIndex;      // √çndice da habilidade
+        bool hovering;       // Se o mouse est√° sobre o n√≥
+    };
+    std::vector<SkillNode> skillNodes;
+
     // Constantes para cores
-    GLfloat groundColor[3] = {0.2f, 0.6f, 0.2f};
     GLfloat skyColor[3] = {0.4f, 0.6f, 0.9f};
 
 public:
     Game() : player(0.0f, 0.5f, 0.0f),
-             cameraDistance(5.0f),
-             cameraHeight(2.0f),
-             cameraAngle(0.0f),
-             gameMode(0),
-             lastFrameTime(0.0f),
-             deltaTime(0.0f) {
+         cameraDistance(5.0f),
+         cameraHeight(2.0f),
+         cameraAngle(0.0f),
+         gameMode(0),
+         lastFrameTime(0.0f),
+         deltaTime(0.0f),
+         lastMouseX(0), lastMouseY(0),
+         mouseLeftDown(false), mouseRightDown(false),
+         mouseSensitivity(0.2f) {
 
         initObjects();
     }
+    bool topDownView = false;
+
+    float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
+
+    bool isInTrail(float x, float z) {
+        float trailWidth = 2.0f;
+        for (const auto& p : trailCurvePoints) {
+            float dx = x - p.x;
+            float dz = z - p.z;
+            float distSq = dx * dx + dz * dz;
+            if (distSq < trailWidth * trailWidth)
+                return true;
+        }
+
+        // Verificar clareiras
+        for (const auto& c : trailClearings) {
+            float dx = x - c.x;
+            float dz = z - c.z;
+            float distSq = dx * dx + dz * dz;
+            if (distSq < 4.0f * 4.0f)  // raio das clareiras
+                return true;
+        }
+
+        return false;
+    }
+
+
+    bool hasGrass(float x, float z) {
+        if (isInTrail(x, z)) {
+            return false; // Sem grama na trilha
+        }
+
+        for (const GrassPatch& patch : grassPatches) {
+            float dx = x - patch.x;
+            float dz = z - patch.z;
+            if (std::sqrt(dx * dx + dz * dz) < patch.radius) {
+                return true; // Dentro de alguma mancha de grama
+            }
+        }
+
+        return false;
+    }
+
+    void generateBranch(TrailPoint origin, float baseDirection, float safeMargin) {
+        float direction = baseDirection + ((rand() % 2 == 0) ? M_PI / 3 : -M_PI / 3); // 60¬∞ esquerda ou direita
+        int branchLength = 8 + rand() % 5; // comprimento vari√°vel
+
+        TrailPoint current = origin;
+
+        for (int i = 0; i < branchLength; ++i) {
+            float length = 1.5f;
+            TrailPoint next;
+            next.x = current.x + cos(direction) * length;
+            next.z = current.z + sin(direction) * length;
+            next.y = getTerrainHeight(next.x, next.z);
+
+            if (fabs(next.x) > safeMargin || fabs(next.z) > safeMargin) break;
+
+            trailCurvePoints.push_back(next);
+            if (i % 4 == 0) trailClearings.push_back(next);
+
+            direction += sin(i * 0.3f) * (M_PI / 18); // zigue-zague leve
+            current = next;
+        }
+    }
+
+
+    void generateNaturalTrail(float worldSize) {
+        trailCurvePoints.clear();
+        trailClearings.clear();
+
+        float safeMargin = worldSize * 0.99f;
+        float length = 1.5f;
+        float curveAngle = M_PI / 12;
+
+        TrailPoint current = {
+            (float)(rand() % (int)(safeMargin * 2)) - safeMargin,
+            (float)(rand() % (int)(safeMargin * 2)) - safeMargin
+        };
+
+        float direction = atan2(-current.z, -current.x); // mira no centro
+        int segments = 60;
+        bool crossedCenter = false;
+
+        for (int i = 0; i < segments; ++i) {
+            if (!crossedCenter && fabs(current.x) < 2.0f && fabs(current.z) < 2.0f) {
+                crossedCenter = true; // passou pelo centro
+            }
+
+            int type = rand() % 4;
+            if (crossedCenter) {
+                switch (type) {
+                    case 1: direction += curveAngle; break;
+                    case 2: direction -= curveAngle; break;
+                    case 3: direction += sin(i * 0.5f) * curveAngle * 2; break;
+                }
+            }
+
+            TrailPoint next;
+            next.x = current.x + cos(direction) * length;
+            next.z = current.z + sin(direction) * length;
+            next.y = getTerrainHeight(next.x, next.z);
+
+            if (fabs(next.x) > safeMargin || fabs(next.z) > safeMargin) {
+                float dx = -current.x;
+                float dz = -current.z;
+                direction = atan2(dz, dx);
+                next.x = current.x + cos(direction) * length;
+                next.z = current.z + sin(direction) * length;
+            }
+
+            trailCurvePoints.push_back(next);
+
+            if (i % 6 == 0 && fabs(next.x) < safeMargin && fabs(next.z) < safeMargin) {
+                trailClearings.push_back(next);
+            }
+
+            // ‚ú® Bifurca√ß√£o ocasional
+            if (i > 10 && i % 15 == 0 && rand() % 100 < 40) {
+                generateBranch(next, direction, safeMargin);
+            }
+
+            current = next;
+        }
+    }
 
     void initObjects() {
-        // Criar ·rvores aleatÛrias
+        // Criar √°rvores aleat√≥rias
         for (int i = 0; i < 20; i++) {
             float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float z = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float size = 0.5f + ((float)rand() / RAND_MAX) * 0.5f;
+            float y = getTerrainHeight(x, z);
 
             gameObjects.push_back(std::make_unique<StaticObject>(
-                x, 0.0f, z, size, TREE, 0.3f, 0.5f, 0.1f
+                x, y, z, size, TREE, 0.3f, 0.5f, 0.1f
             ));
         }
 
@@ -642,9 +941,10 @@ public:
             float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float z = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float size = 0.3f + ((float)rand() / RAND_MAX) * 0.4f;
+            float y = getTerrainHeight(x, z);
 
             gameObjects.push_back(std::make_unique<StaticObject>(
-                x, 0.0f, z, size, ROCK, 0.5f, 0.5f, 0.5f
+                x, y, z, size, ROCK, 0.5f, 0.5f, 0.5f
             ));
         }
 
@@ -653,9 +953,10 @@ public:
             float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float z = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float size = 1.0f + ((float)rand() / RAND_MAX) * 0.5f;
+            float y = getTerrainHeight(x, z);
 
             gameObjects.push_back(std::make_unique<StaticObject>(
-                x, 0.0f, z, size, HOUSE, 0.7f, 0.4f, 0.1f
+                x, y, z, size, HOUSE, 0.7f, 0.4f, 0.1f
             ));
         }
 
@@ -664,10 +965,11 @@ public:
             float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float z = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float size = 0.4f + ((float)rand() / RAND_MAX) * 0.3f;
-            int level = 1 + rand() % 3;  // Inimigos de nÌvel 1 a 3
+            int level = 1 + rand() % 3;  // Inimigos de n√≠vel 1 a 3
+            float y = getTerrainHeight(x, z);
 
             gameObjects.push_back(std::make_unique<Enemy>(
-                x, 0.0f, z, size, level
+                x, y, z, size, level
             ));
         }
 
@@ -676,11 +978,37 @@ public:
             float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float z = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
             float size = 0.2f + ((float)rand() / RAND_MAX) * 0.2f;
+            float y = getTerrainHeight(x, z) + 0.3f;
 
             gameObjects.push_back(std::make_unique<StaticObject>(
-                x, 0.3f, z, size, ITEM, 0.9f, 0.8f, 0.1f
+                x, y, z, size, ITEM, 0.9f, 0.8f, 0.1f
             ));
         }
+
+        generateNaturalTrail(WORLD_SIZE);
+
+        // Criar manchas
+        int numPatches = 20;
+        for (int i = 0; i < numPatches; ++i) {
+            GrassPatch patch;
+            patch.x = (rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
+            patch.z = (rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
+            patch.radius = 2.0f + (rand() % 300) / 100.0f; // raio entre 2 e 5
+            grassPatches.push_back(patch);
+        }
+
+        // Criar grama com densidade controlada
+        for (float x = -WORLD_SIZE; x <= WORLD_SIZE; x += 0.5f) {
+            for (float z = -WORLD_SIZE; z <= WORLD_SIZE; z += 0.5f) {
+                if (hasGrass(x, z)) {
+                    float offsetX = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
+                    float offsetZ = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
+                    float y = getTerrainHeight(x + offsetX, z + offsetZ) + 0.01f;
+                    gameObjects.push_back(std::make_unique<GrassBlade>(x + offsetX, y, z + offsetZ));
+                }
+            }
+        }
+
     }
 
     void update() {
@@ -694,7 +1022,7 @@ public:
 
         // Verificar modo de jogo atual
         if (gameMode != 2) {
-            gameMode = 0;  // Padr„o: exploraÁ„o
+            gameMode = 0;  // Padr√£o: explora√ß√£o
         }
         // Atualizar objetos
         for (auto& object : gameObjects) {
@@ -706,7 +1034,7 @@ public:
                 // Atualizar comportamento do inimigo
                 enemy->moveTowardsPlayer(player, deltaTime);
                 if (enemy->attackPlayer(player, deltaTime)) {
-                    std::cout << "VocÍ foi atacado! Vida restante: " << player.getHealth() << std::endl;
+                    std::cout << "Voc√™ foi atacado! Vida restante: " << player.getHealth() << std::endl;
                 }
 
                 // Se algum inimigo estiver em combate, ativar modo de combate
@@ -722,8 +1050,14 @@ public:
             }
         }
 
-        // Verificar colisıes com objetos
+        // Verificar colis√µes com objetos
         checkCollisions();
+
+        // Atualizar altura do jogador conforme o terreno
+        float targetY = getTerrainHeight(player.getX(), player.getZ())+ 0.3f;
+        float currentY = player.getY();
+        float smoothY = lerp(currentY, targetY, 0.1f); // 0.1 = suaviza√ß√£o
+        player.setPosition(player.getX(), smoothY, player.getZ());
 
         // Manter o jogador dentro dos limites do mundo
         constrainPlayer();
@@ -733,24 +1067,30 @@ public:
         // Limpar o buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Configurar projeÁ„o
+        // Configurar proje√ß√£o
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         gluPerspective(45.0f, glutGet(GLUT_WINDOW_WIDTH) / (float)glutGet(GLUT_WINDOW_HEIGHT), 0.1f, 100.0f);
 
-        // Configurar c‚mera
+        // Configurar c√¢mera
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        // Posicionar c‚mera em 3™ pessoa
+        // Posicionar c√¢mera em 3¬™ pessoa
         float camX = player.getX() - cameraDistance * std::sin(player.getRotY() * M_PI / 180.0f);
         float camZ = player.getZ() - cameraDistance * std::cos(player.getRotY() * M_PI / 180.0f);
 
-        gluLookAt(
-            camX, player.getY() + cameraHeight, camZ,  // PosiÁ„o da c‚mera
-            player.getX(), player.getY(), player.getZ(), // Ponto para onde a c‚mera olha
-            0.0f, 1.0f, 0.0f                      // Vetor "up" (para cima)
-        );
+        if (topDownView) {
+            gluLookAt(player.getX(), 50.0f, player.getZ(),
+                      player.getX(), 0.0f, player.getZ(),
+                      0.0f, 0.0f, -1.0f);
+        } else {
+            gluLookAt(
+                camX, player.getY() + cameraHeight, camZ,  // Posi√ß√£o da c√¢mera
+                player.getX(), player.getY(), player.getZ(), // Ponto para onde a c√¢mera olha
+                0.0f, 1.0f, 0.0f                      // Vetor "up" (para cima)
+            );
+        }
 
         // Desenhar o mundo
         drawGround();
@@ -768,43 +1108,82 @@ public:
         // Desenhar HUD
         drawHUD();
 
-        // Se estiver no menu de habilidades, desenhar a ·rvore
+        // Se estiver no menu de habilidades, desenhar a √°rvore
         if (gameMode == 2) {
             drawSkillTree();
         }
     }
 
     void drawGround() {
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, groundColor);
+        const float step = 1.0f;
+        const float size = WORLD_SIZE;
+
+        GLfloat ambient[]  = {0.1f, 0.6f, 0.35f, 1.0f};
+        GLfloat diffuse[]  = {0.1f, 0.3f, 0.1f, 1.0f};
+        GLfloat specular[] = {0.05f, 0.05f, 0.05f, 1.0f};
+        GLfloat shininess  = 5.0f;
+
+        glDisable(GL_COLOR_MATERIAL);
+        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+
+        for (float x = -size; x < size; x += step) {
+            for (float z = -size; z < size; z += step) {
+                float y1 = getTerrainHeight(x, z);
+                float y2 = getTerrainHeight(x + step, z);
+                float y3 = getTerrainHeight(x + step, z + step);
+                float y4 = getTerrainHeight(x, z + step);
+
+                glBegin(GL_QUADS);
+                glVertex3f(x, y1, z);
+                glVertex3f(x + step, y2, z);
+                glVertex3f(x + step, y3, z + step);
+                glVertex3f(x, y4, z + step);
+                glEnd();
+            }
+        }
+        // Desenhar trilhas por cima do relevo
+        GLfloat trailColor[] = {0.4f, 0.3f, 0.1f};
+        glDisable(GL_COLOR_MATERIAL);
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, trailColor);
 
         glBegin(GL_QUADS);
-        glNormal3f(0.0f, 1.0f, 0.0f); // Normal para cima
-        glVertex3f(-WORLD_SIZE, 0.0f, -WORLD_SIZE);
-        glVertex3f(WORLD_SIZE, 0.0f, -WORLD_SIZE);
-        glVertex3f(WORLD_SIZE, 0.0f, WORLD_SIZE);
-        glVertex3f(-WORLD_SIZE, 0.0f, WORLD_SIZE);
-        glEnd();
+        for (const auto& p : trailCurvePoints) {
+            float y = getTerrainHeight(p.x, p.z) + 0.01f;  // levemente acima do solo
+            float size = 1.0f;
 
-        // Desenhar uma grade para referÍncia visual
-        GLfloat gridColor[] = {0.5f, 0.5f, 0.5f};
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, gridColor);
-        glBegin(GL_LINES);
-        for (float i = -WORLD_SIZE; i <= WORLD_SIZE; i += 2.0f) {
-            glVertex3f(i, 0.01f, -WORLD_SIZE);
-            glVertex3f(i, 0.01f, WORLD_SIZE);
+            glVertex3f(p.x - size, y, p.z - size);
+            glVertex3f(p.x + size, y, p.z - size);
+            glVertex3f(p.x + size, y, p.z + size);
+            glVertex3f(p.x - size, y, p.z + size);
+        }
 
-            glVertex3f(-WORLD_SIZE, 0.01f, i);
-            glVertex3f(WORLD_SIZE, 0.01f, i);
+        // Clareiras maiores
+        for (const auto& c : trailClearings) {
+            float y = getTerrainHeight(c.x, c.z) + 0.01f;
+            float radius = 2.5f;
+            for (float angle = 0; angle < 360.0f; angle += 10.0f) {
+                float rad1 = angle * M_PI / 180.0f;
+                float rad2 = (angle + 10.0f) * M_PI / 180.0f;
+
+                glVertex3f(c.x, y, c.z);
+                glVertex3f(c.x + cos(rad1) * radius, y, c.z + sin(rad1) * radius);
+                glVertex3f(c.x + cos(rad2) * radius, y, c.z + sin(rad2) * radius);
+                glVertex3f(c.x, y, c.z);
+            }
         }
         glEnd();
     }
 
+
     void drawHUD() {
-        // Desabilitar iluminaÁ„o e profundidade para desenhar a HUD
+        // Desabilitar ilumina√ß√£o e profundidade para desenhar a HUD
         glDisable(GL_LIGHTING);
         glDisable(GL_DEPTH_TEST);
 
-        // Configurar projeÁ„o ortogonal para HUD
+        // Configurar proje√ß√£o ortogonal para HUD
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
@@ -840,7 +1219,7 @@ public:
         glVertex2f(10, windowHeight - 30 - barHeight);
         glEnd();
 
-        // Barra de experiÍncia
+        // Barra de experi√™ncia
         float expPercent = (float)player.getExperience() / (float)player.getExperienceToNextLevel();
 
         // Fundo da barra
@@ -852,7 +1231,7 @@ public:
         glVertex2f(10, windowHeight - 60 - barHeight);
         glEnd();
 
-        // Barra de experiÍncia atual
+        // Barra de experi√™ncia atual
         glColor3f(0.2f, 0.4f, 0.8f);
         glBegin(GL_QUADS);
         glVertex2f(10, windowHeight - 60);
@@ -944,11 +1323,17 @@ public:
     }
 
     void drawSkillTree() {
-        // Desabilitar iluminaÁ„o e profundidade para desenhar o menu
+
+        // Calcular layout da √°rvore de habilidades
+        calculateSkillTreeLayout();
+
+        // Desabilitar ilumina√ß√£o e profundidade para desenhar o menu
         glDisable(GL_LIGHTING);
         glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        // Configurar projeÁ„o ortogonal para menu
+        // Configurar proje√ß√£o ortogonal para menu
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
@@ -970,60 +1355,30 @@ public:
         glVertex2f(50, windowHeight - 50);
         glEnd();
 
-        // TÌtulo
+        // T√≠tulo
         glColor3f(1.0f, 1.0f, 0.0f);
         drawText(windowWidth / 2 - 80, windowHeight - 80, "ARVORE DE HABILIDADES");
 
-        // Pontos disponÌveis
+        // Pontos dispon√≠veis
         char buffer[128];
         sprintf(buffer, "Pontos Disponiveis: %d", player.getSkillTree().getSkillPoints());
         drawText(windowWidth / 2 - 80, windowHeight - 110, buffer);
 
-        // Desenhar habilidades
-        const auto& skills = player.getSkillTree().getSkills();
-        int skillIndex = 1;
-        int yPos = windowHeight - 150;
-        int xStart = 100;
 
-        for (const auto& skill : skills) {
-            bool canUpgrade = skill->canLearn() && player.getSkillTree().getSkillPoints() > 0;
 
-            // Cor baseada no estado da habilidade
-            if (skill->getLevel() == 0) {
-                if (canUpgrade) {
-                    glColor3f(0.7f, 0.7f, 0.7f);  // N„o aprendida, mas disponÌvel
-                } else {
-                    glColor3f(0.5f, 0.5f, 0.5f);  // N„o disponÌvel
-                }
-            } else if (skill->getLevel() == skill->getMaxLevel()) {
-                glColor3f(1.0f, 1.0f, 0.0f);  // M·ximo nÌvel
-            } else {
-                if (canUpgrade) {
-                    glColor3f(0.0f, 1.0f, 0.0f);  // Pode melhorar
-                } else {
-                    glColor3f(0.0f, 0.8f, 0.8f);  // J· tem algum nÌvel
-                }
-            }
+        // Desenhar conex√µes entre n√≥s
+        drawSkillTreeConnections();
 
-            // Texto da habilidade
-            sprintf(buffer, "%d. %s (Nivel %d/%d) - Valor: %.1f",
-                    skillIndex, skill->getName().c_str(), skill->getLevel(),
-                    skill->getMaxLevel(), skill->getValue());
-            drawText(xStart, yPos, buffer);
+        // Desenhar n√≥s da √°rvore de habilidades
+        drawSkillTreeNodes();
 
-            yPos -= 30;
-            skillIndex++;
+        // Desenhar tooltips para n√≥s com hover
+        drawSkillNodeTooltips();
 
-            // Mudar para uma segunda coluna se necess·rio
-            if (skillIndex == 5) {
-                yPos = windowHeight - 150;
-                xStart = windowWidth / 2 + 50;
-            }
-        }
-
-        // InstruÁ„o para sair
+        // Instru√ß√£o para sair
         glColor3f(1.0f, 1.0f, 1.0f);
         drawText(windowWidth / 2 - 100, 80, "Pressione K para voltar ao jogo");
+        drawText(windowWidth / 2 - 140, 60, "Use o mouse para selecionar habilidades");
 
         // Restaurar matrizes e estados
         glMatrixMode(GL_PROJECTION);
@@ -1032,8 +1387,309 @@ public:
         glPopMatrix();
 
         // Reativar estados
+        glDisable(GL_BLEND);
         glEnable(GL_LIGHTING);
         glEnable(GL_DEPTH_TEST);
+    }
+
+    void calculateSkillTreeLayout() {
+        int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
+        int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+
+        const auto& skills = player.getSkillTree().getSkills();
+
+        // Limpar n√≥s existentes
+        skillNodes.clear();
+
+        // Definir layout b√°sico com n√≥s de habilidades b√°sicas no centro
+        float centerX = windowWidth / 2.0f;
+        float centerY = windowHeight / 2.0f;
+        float baseRadius = 30.0f;
+        float nodeSpacing = 150.0f;
+
+        // Disposi√ß√£o em estrela das habilidades b√°sicas (0-3)
+        float angles[4] = {0, 90, 180, 270};
+        for (int i = 0; i < 4; i++) {
+            float angle = angles[i] * M_PI / 180.0f;
+            float x = centerX + cos(angle) * nodeSpacing;
+            float y = centerY + sin(angle) * nodeSpacing;
+
+            SkillNode node;
+            node.x = x;
+            node.y = y;
+            node.radius = baseRadius;
+            node.skillIndex = i;
+            node.hovering = false;
+
+            skillNodes.push_back(node);
+        }
+
+        // Habilidades avan√ßadas (4-7) como filhos das b√°sicas
+        for (int i = 0; i < 4; i++) {
+            float angle = angles[i] * M_PI / 180.0f;
+            float x = centerX + cos(angle) * nodeSpacing * 2.0f;
+            float y = centerY + sin(angle) * nodeSpacing * 2.0f;
+
+            SkillNode node;
+            node.x = x;
+            node.y = y;
+            node.radius = baseRadius * 0.9f;
+            node.skillIndex = i + 4;
+            node.hovering = false;
+
+            skillNodes.push_back(node);
+        }
+    }
+
+    void drawSkillTreeConnections() {
+        glLineWidth(2.0f);
+
+        const auto& skills = player.getSkillTree().getSkills();
+
+        // Desenhar linhas conectando habilidades b√°sicas (0-3) com avan√ßadas (4-7)
+        for (int i = 0; i < 4; i++) {
+            int parentIndex = i;
+            int childIndex = i + 4;
+
+            // Determinar cor da linha baseada no estado das habilidades
+            if (skills[childIndex]->getLevel() > 0) {
+                // Conex√£o ativa
+                glColor3f(0.2f, 0.8f, 0.2f);
+            } else if (skills[parentIndex]->getLevel() > 0) {
+                // Conex√£o dispon√≠vel
+                glColor3f(0.8f, 0.8f, 0.2f);
+            } else {
+                // Conex√£o indispon√≠vel
+                glColor3f(0.5f, 0.5f, 0.5f);
+            }
+
+            glBegin(GL_LINES);
+            glVertex2f(skillNodes[parentIndex].x, skillNodes[parentIndex].y);
+            glVertex2f(skillNodes[childIndex].x, skillNodes[childIndex].y);
+            glEnd();
+        }
+    }
+
+    void drawSkillTreeNodes() {
+        const auto& skills = player.getSkillTree().getSkills();
+
+        // Desenhar cada n√≥
+        for (size_t i = 0; i < skillNodes.size(); i++) {
+            const auto& node = skillNodes[i];
+            const auto& skill = skills[node.skillIndex];
+
+            // Determinar cor do n√≥ baseada no estado da habilidade
+            if (skill->getLevel() == 0) {
+                if (skill->canLearn() && player.getSkillTree().getSkillPoints() > 0) {
+                    // N√≥ dispon√≠vel para aprendizado
+                    glColor4f(0.8f, 0.8f, 0.2f, node.hovering ? 0.9f : 0.7f);
+                } else {
+                    // N√≥ indispon√≠vel
+                    glColor4f(0.5f, 0.5f, 0.5f, node.hovering ? 0.9f : 0.7f);
+                }
+            } else if (skill->getLevel() == skill->getMaxLevel()) {
+                // N√≥ com n√≠vel m√°ximo
+                glColor4f(1.0f, 0.6f, 0.0f, node.hovering ? 0.9f : 0.7f);
+            } else {
+                if (skill->canLearn() && player.getSkillTree().getSkillPoints() > 0) {
+                    // N√≥ com n√≠vel parcial e pode melhorar
+                    glColor4f(0.2f, 0.8f, 0.2f, node.hovering ? 0.9f : 0.7f);
+                } else {
+                    // N√≥ com n√≠vel parcial
+                    glColor4f(0.2f, 0.6f, 0.8f, node.hovering ? 0.9f : 0.7f);
+                }
+            }
+
+            // Desenhar c√≠rculo do n√≥
+            drawFilledCircle(node.x, node.y, node.radius, 20);
+
+            // Borda do n√≥
+            if (node.hovering) {
+                glLineWidth(2.5f);
+                glColor4f(1.0f, 1.0f, 1.0f, 0.9f);
+            } else {
+                glLineWidth(1.5f);
+                glColor4f(0.8f, 0.8f, 0.8f, 0.7f);
+            }
+            drawCircle(node.x, node.y, node.radius, 20);
+
+            // Desenhar √≠cone ou indicador de n√≠vel dentro do n√≥
+            char levelText[8];
+            sprintf(levelText, "%d/%d", skill->getLevel(), skill->getMaxLevel());
+
+            // Centralizar texto
+            float textWidth = strlen(levelText) * 8.0f;
+            glColor3f(1.0f, 1.0f, 1.0f);
+            drawText(node.x - textWidth/2, node.y - 6, levelText);
+
+            // Desenhar √≠cone baseado no tipo de habilidade
+            drawSkillIcon(node.x, node.y - 20, skill->getType());
+        }
+    }
+
+    void drawSkillIcon(float x, float y, SkillType type) {
+        glLineWidth(2.0f);
+        glColor3f(1.0f, 1.0f, 1.0f);
+
+        float iconSize = 8.0f;
+
+        switch (type) {
+            case ATTACK:
+                // √çcone de espada
+                glBegin(GL_LINES);
+                glVertex2f(x - iconSize, y + iconSize);
+                glVertex2f(x + iconSize, y - iconSize);
+                glVertex2f(x - iconSize/2, y - iconSize/2);
+                glVertex2f(x + iconSize/2, y + iconSize/2);
+                glEnd();
+                break;
+
+            case DEFENSE:
+                // √çcone de escudo
+                drawCircle(x, y, iconSize, 8);
+                break;
+
+            case MAGIC:
+                // √çcone de estrela
+                drawStar(x, y, iconSize, 5);
+                break;
+
+            case SPEED:
+                // √çcone de velocidade
+                glBegin(GL_LINES);
+                glVertex2f(x - iconSize, y);
+                glVertex2f(x + iconSize, y);
+                glVertex2f(x + iconSize/2, y - iconSize/2);
+                glVertex2f(x + iconSize, y);
+                glVertex2f(x + iconSize/2, y + iconSize/2);
+                glVertex2f(x + iconSize, y);
+                glEnd();
+                break;
+        }
+    }
+
+    void drawSkillNodeTooltips() {
+        for (const auto& node : skillNodes) {
+            if (node.hovering) {
+                const auto& skills = player.getSkillTree().getSkills();
+                const auto& skill = skills[node.skillIndex];
+
+                // Definir tamanho do tooltip
+                float tooltipWidth = 200.0f;
+                float tooltipHeight = 100.0f;
+                float tooltipX = node.x + node.radius + 10;
+                float tooltipY = node.y + tooltipHeight/2;
+
+                // Ajustar posi√ß√£o se sair da tela
+                int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
+                int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+
+                if (tooltipX + tooltipWidth > windowWidth - 50)
+                    tooltipX = node.x - tooltipWidth - node.radius - 10;
+
+                if (tooltipY + tooltipHeight/2 > windowHeight - 50)
+                    tooltipY = windowHeight - 50 - tooltipHeight/2;
+
+                if (tooltipY - tooltipHeight/2 < 50)
+                    tooltipY = 50 + tooltipHeight/2;
+
+                // Desenhar fundo do tooltip
+                glColor3f(0.1f, 0.1f, 0.3f);
+                glBegin(GL_QUADS);
+                glVertex2f(tooltipX, tooltipY - tooltipHeight/2);
+                glVertex2f(tooltipX + tooltipWidth, tooltipY - tooltipHeight/2);
+                glVertex2f(tooltipX + tooltipWidth, tooltipY + tooltipHeight/2);
+                glVertex2f(tooltipX, tooltipY + tooltipHeight/2);
+                glEnd();
+
+                // Desenhar borda do tooltip
+                glLineWidth(1.0f);
+                glColor4f(0.5f, 0.5f, 0.7f, 0.9f);
+                glBegin(GL_LINE_LOOP);
+                glVertex2f(tooltipX, tooltipY - tooltipHeight/2);
+                glVertex2f(tooltipX + tooltipWidth, tooltipY - tooltipHeight/2);
+                glVertex2f(tooltipX + tooltipWidth, tooltipY + tooltipHeight/2);
+                glVertex2f(tooltipX, tooltipY + tooltipHeight/2);
+                glEnd();
+
+                // Desenhar texto do tooltip
+                glColor3f(1.0f, 1.0f, 1.0f);
+                float textY = tooltipY + tooltipHeight/2 - 20;
+
+                glColor3f(1.0f, 1.0f, 1.0f); // Branco puro
+                drawText(tooltipX + 10, textY, "TESTE TOOLTIP");
+
+                // Nome da habilidade
+                char buffer[128];
+                sprintf(buffer, "%s", skill->getName().c_str());
+                drawText(tooltipX + 10, textY, buffer);
+                textY -= 20;
+
+                // N√≠vel atual/m√°ximo
+                sprintf(buffer, "N√≠vel: %d/%d", skill->getLevel(), skill->getMaxLevel());
+                drawText(tooltipX + 10, textY, buffer);
+                textY -= 15;
+
+                // Valor atual
+                sprintf(buffer, "Valor: %.1f", skill->getValue());
+                drawText(tooltipX + 10, textY, buffer);
+                textY -= 15;
+
+                // Status de disponibilidade
+                if (skill->getLevel() == skill->getMaxLevel()) {
+                    glColor3f(1.0f, 0.6f, 0.0f);
+                    drawText(tooltipX + 10, textY, "N√≠vel M√°ximo Alcan√ßado");
+                } else if (skill->canLearn() && player.getSkillTree().getSkillPoints() > 0) {
+                    glColor3f(0.2f, 1.0f, 0.2f);
+                    drawText(tooltipX + 10, textY, "Clique para Melhorar");
+                } else if (!skill->canLearn()) {
+                    glColor3f(1.0f, 0.2f, 0.2f);
+                    drawText(tooltipX + 10, textY, "Requisitos n√£o Atendidos");
+                } else {
+                    glColor3f(1.0f, 1.0f, 0.0f);
+                    drawText(tooltipX + 10, textY, "Pontos de Habilidade Insuficientes");
+                }
+
+                break; // Mostrar apenas um tooltip por vez
+            }
+        }
+    }
+
+    // Fun√ß√µes auxiliares de desenho
+    void drawFilledCircle(float x, float y, float radius, int segments) {
+        glBegin(GL_POLYGON);
+        for (int i = 0; i < segments; i++) {
+            float theta = 2.0f * M_PI * i / segments;
+            float px = x + radius * cosf(theta);
+            float py = y + radius * sinf(theta);
+            glVertex2f(px, py);
+        }
+        glEnd();
+    }
+
+    void drawCircle(float x, float y, float radius, int segments) {
+        glBegin(GL_LINE_LOOP);
+        for (int i = 0; i < segments; i++) {
+            float theta = 2.0f * M_PI * i / segments;
+            float px = x + radius * cosf(theta);
+            float py = y + radius * sinf(theta);
+            glVertex2f(px, py);
+        }
+        glEnd();
+    }
+
+    void drawStar(float x, float y, float radius, int points) {
+        float innerRadius = radius * 0.4f;
+
+        glBegin(GL_LINE_LOOP);
+        for (int i = 0; i < points * 2; i++) {
+            float theta = M_PI * i / points;
+            float r = (i % 2 == 0) ? radius : innerRadius;
+            float px = x + r * cosf(theta);
+            float py = y + r * sinf(theta);
+            glVertex2f(px, py);
+        }
+        glEnd();
     }
 
     void drawText(float x, float y, const char* string) {
@@ -1047,7 +1703,7 @@ public:
     }
 
     void checkCollisions() {
-        // Verificar colisıes entre o jogador e objetos
+        // Verificar colis√µes entre o jogador e objetos
         for (auto& object : gameObjects) {
             if (!object->isActive()) continue;
 
@@ -1056,23 +1712,23 @@ public:
                 if (object->getType() == ITEM) {
                     object->setActive(false);
                     player.heal(10.0f);  // Cura
-                    player.addExperience(100);  // Pequena quantidade de XP
+                    player.addExperience(10000);  // Pequena quantidade de XP
                     std::cout << "Item coletado! +10 XP, +10 Vida" << std::endl;
                     continue;
                 }
 
-                // Para outros objetos, implementar resposta ‡ colis„o
+                // Para outros objetos, implementar resposta √† colis√£o
                 float dx = player.getX() - object->getX();
                 float dz = player.getZ() - object->getZ();
                 float dist = std::sqrt(dx*dx + dz*dz);
 
-                if (dist > 0.1f) {  // Evitar divis„o por zero
+                if (dist > 0.1f) {  // Evitar divis√£o por zero
                     float overlap = (player.getSize() + object->getSize()) - dist;
                     float x = player.getX() + (dx / dist) * overlap * 1.1f;
                     float z = player.getZ() + (dz / dist) * overlap * 1.1f;
                     player.setPosition(x, player.getY(), z);
                 } else {
-                    // Se muito prÛximo, empurrar em uma direÁ„o aleatÛria
+                    // Se muito pr√≥ximo, empurrar em uma dire√ß√£o aleat√≥ria
                     float x = player.getX() + ((float)rand() / RAND_MAX * 2.0f - 1.0f) * 0.1f;
                     float z = player.getZ() + ((float)rand() / RAND_MAX * 2.0f - 1.0f) * 0.1f;
                     player.setPosition(x, player.getY(), z);
@@ -1098,7 +1754,7 @@ public:
         if (gameMode == 2) {
             // Menu de habilidades
             if (key == 'k') {  // K
-                gameMode = 0;  // Voltar para exploraÁ„o
+                gameMode = 0;  // Voltar para explora√ß√£o
             } else if (key >= '1' && key <= '9') {
                 int skillIndex = key - '1';
                 const auto& skills = player.getSkillTree().getSkills();
@@ -1108,7 +1764,7 @@ public:
                     if (player.getSkillTree().useSkillPoint(skillName)) {
                         std::cout << "Habilidade melhorada: " << skillName << std::endl;
                     } else {
-                        std::cout << "N„o foi possÌvel melhorar a habilidade." << std::endl;
+                        std::cout << "N√£o foi poss√≠vel melhorar a habilidade." << std::endl;
                     }
                 }
             }
@@ -1123,6 +1779,9 @@ public:
             case 's': case 'S':
                 player.moveBackward();
                 break;
+            case 't':
+                topDownView = !topDownView;
+                break;
             case 'a': case 'A':
                 player.strafeLeft();
                 break;
@@ -1136,7 +1795,7 @@ public:
                 player.rotateRight();
                 break;
             case 'c': case 'C':
-                // Alternar dist‚ncia da c‚mera
+                // Alternar dist√¢ncia da c√¢mera
                 cameraDistance = (cameraDistance == 5.0f) ? 2.0f : 5.0f;
                 break;
             case ' ':
@@ -1174,7 +1833,7 @@ public:
                             if (dist < 3.0f) {  // Alcance maior
                                 float damage = player.getAttackDamage() * 1.5f;  // Dano aumentado
                                 enemy->takeDamage(damage);
-                                std::cout << "Dano crÌtico causado: " << damage << std::endl;
+                                std::cout << "Dano cr√≠tico causado: " << damage << std::endl;
                             }
                         }
                     }
@@ -1202,12 +1861,113 @@ public:
         }
     }
 
+    // Adicionar estes m√©todos √† classe Game
+    void handleMouseClick(int button, int state, int x, int y) {
+        lastMouseX = x;
+        lastMouseY = y;
+
+        if (button == GLUT_LEFT_BUTTON) {
+            mouseLeftDown = (state == GLUT_DOWN);
+
+            // Verificar clique na √°rvore de habilidades
+            if (mouseLeftDown && gameMode == 2) {
+                checkSkillTreeClick(x, y);
+            }
+        } else if (button == GLUT_RIGHT_BUTTON) {
+            mouseRightDown = (state == GLUT_DOWN);
+        }
+    }
+
+    void handleMouseMotion(int x, int y) {
+        int deltaX = x - lastMouseX;
+        int deltaY = y - lastMouseY;
+
+        if (mouseRightDown) {
+            // Rotacionar a c√¢mera com o mouse direito
+            player.rotateRight(deltaX * mouseSensitivity);
+
+            // Ajustar altura da c√¢mera com movimento vertical do mouse
+            cameraHeight -= deltaY * mouseSensitivity * 0.05f;
+            if (cameraHeight < 0.5f) cameraHeight = 0.5f;
+            if (cameraHeight > 5.0f) cameraHeight = 5.0f;
+        }
+
+        if (gameMode == 2) {
+            // Atualizar estado de hover nos n√≥s da √°rvore de habilidades
+            updateSkillNodeHover(x, y);
+        }
+
+        lastMouseX = x;
+        lastMouseY = y;
+    }
+
+    void handlePassiveMouseMotion(int x, int y) {
+        lastMouseX = x;
+        lastMouseY = y;
+
+        if (gameMode == 2) {
+            // Atualizar estado de hover nos n√≥s da √°rvore de habilidades
+            updateSkillNodeHover(x, y);
+        }
+    }
+
+    void checkSkillTreeClick(int x, int y) {
+        int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+        y = windowHeight - y; // Inverter coordenada Y para corresponder ao nosso sistema
+
+        for (const auto& node : skillNodes) {
+            float dx = x - node.x;
+            float dy = y - node.y;
+            float distSq = dx*dx + dy*dy;
+
+            if (distSq < node.radius * node.radius) {
+                // N√≥ clicado
+                const auto& skills = player.getSkillTree().getSkills();
+                if (node.skillIndex < static_cast<int>(skills.size())) {
+                    std::string skillName = skills[node.skillIndex]->getName();
+                    if (player.getSkillTree().useSkillPoint(skillName)) {
+                        std::cout << "Habilidade melhorada: " << skillName << std::endl;
+                    } else {
+                        std::cout << "N√£o foi poss√≠vel melhorar a habilidade." << std::endl;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    void updateSkillNodeHover(int x, int y) {
+        int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+        y = windowHeight - y; // Inverter coordenada Y
+
+
+        for (auto& node : skillNodes) {
+            float dx = x - node.x;
+            float dy = y - node.y;
+            float distSq = dx*dx + dy*dy;
+
+            node.hovering = (distSq < node.radius * node.radius);
+
+        }
+    }
+
     // Getters e setters
     Player& getPlayer() { return player; }
     int getGameMode() const { return gameMode; }
     void setGameMode(int mode) { gameMode = mode; }
 
     // Responders de eventos
+    static void mouseCallback(int button, int state, int x, int y) {
+        GetInstance().handleMouseClick(button, state, x, y);
+    }
+
+    static void motionCallback(int x, int y) {
+        GetInstance().handleMouseMotion(x, y);
+    }
+
+    static void passiveMotionCallback(int x, int y) {
+        GetInstance().handlePassiveMouseMotion(x, y);
+    }
     static void displayCallback() {
         GetInstance().render();
         glutSwapBuffers();
@@ -1238,15 +1998,18 @@ public:
     }
 };
 
-// FunÁıes globais para callbacks do GLUT
+// Fun√ß√µes globais para callbacks do GLUT
 void display() { Game::displayCallback(); }
 void reshape(int w, int h) { Game::reshapeCallback(w, h); }
 void keyboard(unsigned char key, int x, int y) { Game::keyboardCallback(key, x, y); }
 void specialKeys(int key, int x, int y) { Game::specialCallback(key, x, y); }
 void update(int value) { Game::timerCallback(value); }
+void mouse(int button, int state, int x, int y) { Game::mouseCallback(button, state, x, y); }
+void motion(int x, int y) { Game::motionCallback(x, y); }
+void passiveMotion(int x, int y) { Game::passiveMotionCallback(x, y); }
 
 void init() {
-    // ConfiguraÁıes de OpenGL
+    // Configura√ß√µes de OpenGL
     glClearColor(0.4f, 0.6f, 0.9f, 1.0f);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_COLOR_MATERIAL);
@@ -1262,10 +2025,10 @@ void init() {
     glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
 
-    // Inicializar a semente aleatÛria
+    // Inicializar a semente aleat√≥ria
     srand(static_cast<unsigned int>(time(nullptr)));
 
-    // Inicializar o jogo (j· È feito no construtor do singleton)
+    // Inicializar o jogo (j√° √© feito no construtor do singleton)
 }
 
 int main(int argc, char** argv) {
@@ -1282,6 +2045,9 @@ int main(int argc, char** argv) {
     glutKeyboardFunc(keyboard);
     glutSpecialFunc(specialKeys);
     glutTimerFunc(16, update, 0);
+    glutMouseFunc(mouse);
+    glutMotionFunc(motion);
+    glutPassiveMotionFunc(passiveMotion);
 
     // Inicializar OpenGL
     init();
