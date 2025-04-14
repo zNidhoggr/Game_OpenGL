@@ -22,10 +22,19 @@ float getTerrainHeight(float x, float z) {
         // Ruído sutil
         height += (std::sin(x * 0.3f + z * 0.5f) * 0.3f);
 
-        // Depressão simulando lago
-        float distToLakeCenter = std::sqrt((x - 5)*(x - 5) + (z - 5)*(z - 5));
-        if (distToLakeCenter < 4.0f) {
-            height -= (4.0f - distToLakeCenter) * 0.4f;
+        // Lista de centros de lagos
+        std::vector<std::pair<float, float>> lakeCenters = {
+            {5.0f, 5.0f},
+            {-7.0f, -3.0f},
+            {8.0f, -6.0f},
+            {-4.0f, 7.0f}
+        };
+
+        for (const auto& center : lakeCenters) {
+            float dist = std::sqrt((x - center.first)*(x - center.first) + (z - center.second)*(z - center.second));
+            if (dist < 3.5f) {
+                height -= (3.5f - dist) * 0.4f;
+            }
         }
 
         return height;
@@ -61,6 +70,15 @@ struct GrassPatch {
 struct TrailPoint {
     float x, y, z;
 };
+
+struct SkillTooltip {
+    bool visible;
+    int skillIndex;
+    float x, y;        // Posição na tela
+    float width, height;
+    bool showConfirmation;
+};
+SkillTooltip skillTooltip;
 
 //Variavéis Globais
 std::vector<TrailPoint> trailCurvePoints;
@@ -793,12 +811,51 @@ public:
          mouseLeftDown(false), mouseRightDown(false),
          mouseSensitivity(0.2f) {
 
+        // Inicializar tooltip
+        skillTooltip.visible = false;
+        skillTooltip.showConfirmation = false;
+        skillTooltip.width = 250.0f;
+        skillTooltip.height = 150.0f;
+
         initObjects();
     }
     bool topDownView = false;
 
     float lerp(float a, float b, float t) {
         return a + (b - a) * t;
+    }
+
+    bool isUnderWater(float x, float z) {
+        std::vector<std::pair<float, float>> lakeCenters = {
+            {5.0f, 5.0f},
+            {-7.0f, -3.0f},
+            {8.0f, -6.0f},
+            {-4.0f, 7.0f}
+        };
+        float radius = 3.5f;
+
+        for (const auto& center : lakeCenters) {
+            float cx = center.first;
+            float cz = center.second;
+
+            float dist = std::sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz));
+            if (dist < radius) {
+                // Calcular altura da borda
+                float maxEdgeHeight = -1000.0f;
+                for (int angle = 0; angle < 360; angle += 10) {
+                    float rad = angle * M_PI / 180.0f;
+                    float bx = cx + cos(rad) * radius;
+                    float bz = cz + sin(rad) * radius;
+                    float h = getTerrainHeight(bx, bz);
+                    if (h > maxEdgeHeight) maxEdgeHeight = h;
+                }
+
+                float waterHeight = maxEdgeHeight - 0.02f;
+                float terrainY = getTerrainHeight(x, z);
+                if (terrainY < waterHeight) return true;
+            }
+        }
+        return false;
     }
 
     bool isInTrail(float x, float z) {
@@ -931,6 +988,7 @@ public:
             float size = 0.5f + ((float)rand() / RAND_MAX) * 0.5f;
             float y = getTerrainHeight(x, z);
 
+            if (isUnderWater(x, z)) continue; // ignora objetos submersos
             gameObjects.push_back(std::make_unique<StaticObject>(
                 x, y, z, size, TREE, 0.3f, 0.5f, 0.1f
             ));
@@ -943,6 +1001,7 @@ public:
             float size = 0.3f + ((float)rand() / RAND_MAX) * 0.4f;
             float y = getTerrainHeight(x, z);
 
+            if (isUnderWater(x, z)) continue; // ignora objetos submersos
             gameObjects.push_back(std::make_unique<StaticObject>(
                 x, y, z, size, ROCK, 0.5f, 0.5f, 0.5f
             ));
@@ -955,6 +1014,7 @@ public:
             float size = 1.0f + ((float)rand() / RAND_MAX) * 0.5f;
             float y = getTerrainHeight(x, z);
 
+            if (isUnderWater(x, z)) continue; // ignora objetos submersos
             gameObjects.push_back(std::make_unique<StaticObject>(
                 x, y, z, size, HOUSE, 0.7f, 0.4f, 0.1f
             ));
@@ -968,6 +1028,7 @@ public:
             int level = 1 + rand() % 3;  // Inimigos de nível 1 a 3
             float y = getTerrainHeight(x, z);
 
+            if (isUnderWater(x, z)) continue; // ignora objetos submersos
             gameObjects.push_back(std::make_unique<Enemy>(
                 x, y, z, size, level
             ));
@@ -980,6 +1041,7 @@ public:
             float size = 0.2f + ((float)rand() / RAND_MAX) * 0.2f;
             float y = getTerrainHeight(x, z) + 0.3f;
 
+            if (isUnderWater(x, z)) continue; // ignora objetos submersos
             gameObjects.push_back(std::make_unique<StaticObject>(
                 x, y, z, size, ITEM, 0.9f, 0.8f, 0.1f
             ));
@@ -1004,6 +1066,8 @@ public:
                     float offsetX = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
                     float offsetZ = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
                     float y = getTerrainHeight(x + offsetX, z + offsetZ) + 0.01f;
+
+                    if (isUnderWater(x, z)) continue; // ignora objetos submersos
                     gameObjects.push_back(std::make_unique<GrassBlade>(x + offsetX, y, z + offsetZ));
                 }
             }
@@ -1095,6 +1159,8 @@ public:
         // Desenhar o mundo
         drawGround();
 
+        drawLakes();
+
         // Desenhar objetos
         for (auto& object : gameObjects) {
             if (object->isActive()) {
@@ -1175,6 +1241,66 @@ public:
             }
         }
         glEnd();
+    }
+
+    void drawLakes() {
+        std::vector<std::pair<float, float>> lakeCenters = {
+            {5.0f, 5.0f},
+            {-7.0f, -3.0f},
+            {8.0f, -6.0f},
+            {-4.0f, 7.0f}
+        };
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_LIGHTING);
+
+        for (const auto& center : lakeCenters) {
+            float cx = center.first;
+            float cz = center.second;
+            float radius = 3.5f;
+
+            // Encontrar a altura mais alta da borda
+            float maxEdgeHeight = -1000.0f;
+            for (int angle = 0; angle < 360; angle += 10) {
+                float rad = angle * M_PI / 180.0f;
+                float x = cx + cos(rad) * radius;
+                float z = cz + sin(rad) * radius;
+                float h = getTerrainHeight(x, z);
+                if (h > maxEdgeHeight) maxEdgeHeight = h;
+            }
+
+            float waterHeight = maxEdgeHeight - 0.02f;
+
+            // Cor da água
+            glColor4f(0.0f, 0.4f, 0.8f, 0.5f); // azul translúcido
+
+            // Desenhar tampo superior (superfície da água)
+            glBegin(GL_TRIANGLE_FAN);
+            glVertex3f(cx, waterHeight, cz);
+            for (int angle = 0; angle <= 360; angle += 10) {
+                float rad = angle * M_PI / 180.0f;
+                float x = cx + cos(rad) * radius;
+                float z = cz + sin(rad) * radius;
+                glVertex3f(x, waterHeight, z);
+            }
+            glEnd();
+
+            // Desenhar as laterais (volume)
+            glBegin(GL_QUAD_STRIP);
+            for (int angle = 0; angle <= 360; angle += 10) {
+                float rad = angle * M_PI / 180.0f;
+                float x = cx + cos(rad) * radius;
+                float z = cz + sin(rad) * radius;
+                float bottomY = getTerrainHeight(x, z);
+                glVertex3f(x, bottomY, z);      // ponto inferior (no relevo)
+                glVertex3f(x, waterHeight, z);  // ponto superior (nível da água)
+            }
+            glEnd();
+        }
+
+        glDisable(GL_BLEND);
+        glEnable(GL_LIGHTING);
     }
 
 
@@ -1372,8 +1498,8 @@ public:
         // Desenhar nós da árvore de habilidades
         drawSkillTreeNodes();
 
-        // Desenhar tooltips para nós com hover
-        drawSkillNodeTooltips();
+        // Desenhar tooltip para nós clicados
+        drawSkillTooltip();
 
         // Instrução para sair
         glColor3f(1.0f, 1.0f, 1.0f);
@@ -1568,90 +1694,99 @@ public:
         }
     }
 
-    void drawSkillNodeTooltips() {
-        for (const auto& node : skillNodes) {
-            if (node.hovering) {
-                const auto& skills = player.getSkillTree().getSkills();
-                const auto& skill = skills[node.skillIndex];
+    void drawSkillTooltip() {
+        if (!skillTooltip.visible) return;
 
-                // Definir tamanho do tooltip
-                float tooltipWidth = 200.0f;
-                float tooltipHeight = 100.0f;
-                float tooltipX = node.x + node.radius + 10;
-                float tooltipY = node.y + tooltipHeight/2;
+        const auto& skills = player.getSkillTree().getSkills();
+        const auto& skill = skills[skillTooltip.skillIndex];
 
-                // Ajustar posição se sair da tela
-                int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
-                int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+        // Fundo da tooltip
+        glColor4f(0.1f, 0.1f, 0.3f, 0.9f);
+        glBegin(GL_QUADS);
+        glVertex2f(skillTooltip.x, skillTooltip.y);
+        glVertex2f(skillTooltip.x + skillTooltip.width, skillTooltip.y);
+        glVertex2f(skillTooltip.x + skillTooltip.width, skillTooltip.y + skillTooltip.height);
+        glVertex2f(skillTooltip.x, skillTooltip.y + skillTooltip.height);
+        glEnd();
 
-                if (tooltipX + tooltipWidth > windowWidth - 50)
-                    tooltipX = node.x - tooltipWidth - node.radius - 10;
+        // Borda
+        glColor4f(0.8f, 0.8f, 0.9f, 1.0f);
+        glLineWidth(2.0f);
+        glBegin(GL_LINE_LOOP);
+        glVertex2f(skillTooltip.x, skillTooltip.y);
+        glVertex2f(skillTooltip.x + skillTooltip.width, skillTooltip.y);
+        glVertex2f(skillTooltip.x + skillTooltip.width, skillTooltip.y + skillTooltip.height);
+        glVertex2f(skillTooltip.x, skillTooltip.y + skillTooltip.height);
+        glEnd();
 
-                if (tooltipY + tooltipHeight/2 > windowHeight - 50)
-                    tooltipY = windowHeight - 50 - tooltipHeight/2;
+        // Título da habilidade
+        glColor3f(1.0f, 1.0f, 0.0f);
+        drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 25, skill->getName().c_str());
 
-                if (tooltipY - tooltipHeight/2 < 50)
-                    tooltipY = 50 + tooltipHeight/2;
+        // Informações da habilidade
+        glColor3f(1.0f, 1.0f, 1.0f);
+        char buffer[128];
 
-                // Desenhar fundo do tooltip
-                glColor3f(0.1f, 0.1f, 0.3f);
-                glBegin(GL_QUADS);
-                glVertex2f(tooltipX, tooltipY - tooltipHeight/2);
-                glVertex2f(tooltipX + tooltipWidth, tooltipY - tooltipHeight/2);
-                glVertex2f(tooltipX + tooltipWidth, tooltipY + tooltipHeight/2);
-                glVertex2f(tooltipX, tooltipY + tooltipHeight/2);
-                glEnd();
+        // Tipo de habilidade
+        const char* typeStr = "";
+        switch (skill->getType()) {
+            case ATTACK: typeStr = "Ataque"; break;
+            case DEFENSE: typeStr = "Defesa"; break;
+            case MAGIC: typeStr = "Magia"; break;
+            case SPEED: typeStr = "Velocidade"; break;
+        }
+        sprintf(buffer, "Tipo: %s", typeStr);
+        drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 45, buffer);
 
-                // Desenhar borda do tooltip
-                glLineWidth(1.0f);
-                glColor4f(0.5f, 0.5f, 0.7f, 0.9f);
-                glBegin(GL_LINE_LOOP);
-                glVertex2f(tooltipX, tooltipY - tooltipHeight/2);
-                glVertex2f(tooltipX + tooltipWidth, tooltipY - tooltipHeight/2);
-                glVertex2f(tooltipX + tooltipWidth, tooltipY + tooltipHeight/2);
-                glVertex2f(tooltipX, tooltipY + tooltipHeight/2);
-                glEnd();
+        // Nível atual e máximo
+        sprintf(buffer, "Nivel: %d/%d", skill->getLevel(), skill->getMaxLevel());
+        drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 65, buffer);
 
-                // Desenhar texto do tooltip
-                glColor3f(1.0f, 1.0f, 1.0f);
-                float textY = tooltipY + tooltipHeight/2 - 20;
+        // Valor atual
+        sprintf(buffer, "Valor: %.1f", skill->getValue());
+        drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 85, buffer);
 
-                glColor3f(1.0f, 1.0f, 1.0f); // Branco puro
-                drawText(tooltipX + 10, textY, "TESTE TOOLTIP");
+        // Custo
+        sprintf(buffer, "Custo: 1 ponto de habilidade");
+        drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 105, buffer);
 
-                // Nome da habilidade
-                char buffer[128];
-                sprintf(buffer, "%s", skill->getName().c_str());
-                drawText(tooltipX + 10, textY, buffer);
-                textY -= 20;
-
-                // Nível atual/máximo
-                sprintf(buffer, "Nível: %d/%d", skill->getLevel(), skill->getMaxLevel());
-                drawText(tooltipX + 10, textY, buffer);
-                textY -= 15;
-
-                // Valor atual
-                sprintf(buffer, "Valor: %.1f", skill->getValue());
-                drawText(tooltipX + 10, textY, buffer);
-                textY -= 15;
-
-                // Status de disponibilidade
-                if (skill->getLevel() == skill->getMaxLevel()) {
-                    glColor3f(1.0f, 0.6f, 0.0f);
-                    drawText(tooltipX + 10, textY, "Nível Máximo Alcançado");
-                } else if (skill->canLearn() && player.getSkillTree().getSkillPoints() > 0) {
-                    glColor3f(0.2f, 1.0f, 0.2f);
-                    drawText(tooltipX + 10, textY, "Clique para Melhorar");
-                } else if (!skill->canLearn()) {
-                    glColor3f(1.0f, 0.2f, 0.2f);
-                    drawText(tooltipX + 10, textY, "Requisitos não Atendidos");
-                } else {
-                    glColor3f(1.0f, 1.0f, 0.0f);
-                    drawText(tooltipX + 10, textY, "Pontos de Habilidade Insuficientes");
-                }
-
-                break; // Mostrar apenas um tooltip por vez
+        // Disponibilidade
+        if (!skill->canLearn()) {
+            glColor3f(1.0f, 0.3f, 0.3f);
+            if (skill->getLevel() >= skill->getMaxLevel()) {
+                drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 125, "Nivel maximo atingido");
+            } else {
+                drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 125, "Pre-requisitos nao cumpridos");
             }
+        } else if (player.getSkillTree().getSkillPoints() <= 0) {
+            glColor3f(1.0f, 0.3f, 0.3f);
+            drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 125, "Pontos insuficientes");
+        }
+
+        // Botões de confirmação
+        if (skillTooltip.showConfirmation && skill->canLearn() && player.getSkillTree().getSkillPoints() > 0) {
+            // Botão Sim
+            glColor4f(0.2f, 0.7f, 0.2f, 0.8f);
+            glBegin(GL_QUADS);
+            glVertex2f(skillTooltip.x + 30, skillTooltip.y + 20);
+            glVertex2f(skillTooltip.x + 100, skillTooltip.y + 20);
+            glVertex2f(skillTooltip.x + 100, skillTooltip.y + 45);
+            glVertex2f(skillTooltip.x + 30, skillTooltip.y + 45);
+            glEnd();
+
+            // Botão Não
+            glColor4f(0.7f, 0.2f, 0.2f, 0.8f);
+            glBegin(GL_QUADS);
+            glVertex2f(skillTooltip.x + 150, skillTooltip.y + 20);
+            glVertex2f(skillTooltip.x + 220, skillTooltip.y + 20);
+            glVertex2f(skillTooltip.x + 220, skillTooltip.y + 45);
+            glVertex2f(skillTooltip.x + 150, skillTooltip.y + 45);
+            glEnd();
+
+            // Textos dos botões
+            glColor3f(1.0f, 1.0f, 1.0f);
+            drawText(skillTooltip.x + 45, skillTooltip.y + 30, "Aprender");
+            drawText(skillTooltip.x + 175, skillTooltip.y + 30, "Cancelar");
         }
     }
 
@@ -1915,25 +2050,64 @@ public:
         int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
         y = windowHeight - y; // Inverter coordenada Y para corresponder ao nosso sistema
 
+        // Verificar se clicou no botão de confirmação, se a tooltip estiver visível
+        if (skillTooltip.visible && skillTooltip.showConfirmation) {
+            // Verificar se clicou no botão "Sim"
+            if (x >= skillTooltip.x + 30 &&
+                x <= skillTooltip.x + 100 &&
+                y >= skillTooltip.y + 20 &&
+                y <= skillTooltip.y + 45) {
+
+                const auto& skills = player.getSkillTree().getSkills();
+                std::string skillName = skills[skillTooltip.skillIndex]->getName();
+                if (player.getSkillTree().useSkillPoint(skillName)) {
+                    std::cout << "Habilidade melhorada: " << skillName << std::endl;
+                }
+                skillTooltip.visible = false;
+                return;
+            }
+
+            // Verificar se clicou no botão "Não"
+            if (x >= skillTooltip.x + 150 &&
+                x <= skillTooltip.x + 220 &&
+                y >= skillTooltip.y + 20 &&
+                y <= skillTooltip.y + 45) {
+
+                skillTooltip.visible = false;
+                return;
+            }
+        }
+
+        // Verificar clique em uma habilidade para mostrar a tooltip
         for (const auto& node : skillNodes) {
             float dx = x - node.x;
             float dy = y - node.y;
             float distSq = dx*dx + dy*dy;
 
             if (distSq < node.radius * node.radius) {
-                // Nó clicado
-                const auto& skills = player.getSkillTree().getSkills();
-                if (node.skillIndex < static_cast<int>(skills.size())) {
-                    std::string skillName = skills[node.skillIndex]->getName();
-                    if (player.getSkillTree().useSkillPoint(skillName)) {
-                        std::cout << "Habilidade melhorada: " << skillName << std::endl;
-                    } else {
-                        std::cout << "Não foi possível melhorar a habilidade." << std::endl;
-                    }
-                }
-                break;
+                // Mostrar tooltip
+                skillTooltip.visible = true;
+                skillTooltip.skillIndex = node.skillIndex;
+                skillTooltip.x = x + 20; // Posicionar a tooltip ao lado do mouse
+                skillTooltip.y = y - skillTooltip.height / 2;
+                skillTooltip.showConfirmation = true;
+
+                // Garantir que a tooltip fique dentro da tela
+                int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
+                if (skillTooltip.x + skillTooltip.width > windowWidth)
+                    skillTooltip.x = windowWidth - skillTooltip.width - 10;
+
+                if (skillTooltip.y < 10)
+                    skillTooltip.y = 10;
+                else if (skillTooltip.y + skillTooltip.height > windowHeight)
+                    skillTooltip.y = windowHeight - skillTooltip.height - 10;
+
+                return;
             }
         }
+
+        // Se clicou fora dos nós e fora dos botões, fechar a tooltip
+        skillTooltip.visible = false;
     }
 
     void updateSkillNodeHover(int x, int y) {
