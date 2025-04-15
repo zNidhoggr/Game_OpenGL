@@ -40,18 +40,30 @@ float getTerrainHeight(float x, float z) {
         return height;
     }
 
+const int DUNGEON_WIDTH = 10;
+const int DUNGEON_HEIGHT = 10;
+bool dungeonGrid[DUNGEON_WIDTH][DUNGEON_HEIGHT];  // true = sala existente
+const int MAP_SIZE = 100;
+float heightMap[MAP_SIZE][MAP_SIZE];
+bool trailMap[MAP_SIZE][MAP_SIZE] = {false};
+bool lakeMap[MAP_SIZE][MAP_SIZE] = {false};
+
 // Forward declarations
 class GameObject;
 class SkillTree;
+class Game;
 
 // Enumeração para tipos de objeto
 enum ObjectType {
     TREE,
     ROCK,
     HOUSE,
+    GRASS,
+    WALL,
     ENEMY,
     ITEM,
-    NPC
+    NPC,
+    PORTAL
 };
 
 // Enumeração para tipos de habilidade
@@ -60,6 +72,11 @@ enum SkillType {
     DEFENSE,
     MAGIC,
     SPEED
+};
+
+enum class MapType {
+    MAIN,
+    DUNGEON
 };
 
 struct GrassPatch {
@@ -214,10 +231,11 @@ protected:
     float size;          // Tamanho
     ObjectType type;     // Tipo de objeto
     bool active;         // Se está ativo no mundo
+    bool collidable;     // Se colide com o jogador
 
 public:
-    GameObject(float x, float y, float z, float size, ObjectType type)
-        : x(x), y(y), z(z), size(size), type(type), active(true) {}
+    GameObject(float x, float y, float z, float size, ObjectType type, bool collidable = true)
+        : x(x), y(y), z(z), size(size), type(type), active(true), collidable(collidable) {}
 
     virtual ~GameObject() {}
 
@@ -239,6 +257,7 @@ public:
     float getSize() const { return size; }
     ObjectType getType() const { return type; }
     bool isActive() const { return active; }
+    bool isCollidable() const { return collidable; }
 
     void setPosition(float newX, float newY, float newZ) {
         x = newX;
@@ -247,7 +266,9 @@ public:
     }
 
     void setActive(bool state) { active = state; }
+    void setCollidable(bool value) { collidable = value; }
 };
+
 
 // Classe para o jogador
 class Player : public GameObject {
@@ -689,6 +710,28 @@ public:
                 break;
             }
 
+            case WALL: {
+                glDisable(GL_COLOR_MATERIAL);
+                GLfloat ambient[]  = {0.2f, 0.2f, 0.2f, 1.0f};
+                GLfloat diffuse[]  = {0.5f, 0.5f, 0.5f, 1.0f};
+                GLfloat specular[] = {0.1f, 0.1f, 0.1f, 1.0f};
+                GLfloat shininess  = 10.0f;
+
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+
+                // Escala para formar uma parede retangular longa e fina
+                glPushMatrix();
+                glScalef(1.0f, 1.0f, 0.1f);  // Comprida e fina
+                glutSolidCube(size);        // size será o comprimento
+                glPopMatrix();
+                break;
+            }
+
+
+
             case ITEM: {
                 // Desenhar um item coletável
                 glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, color);
@@ -717,7 +760,7 @@ public:
 class GrassBlade : public GameObject {
 public:
     GrassBlade(float x, float y, float z)
-        : GameObject(x, y, z, 0.1f, ObjectType::ITEM) {}  // Pode usar outro tipo
+        : GameObject(x, y, z, 0.1f, ObjectType::GRASS, false) {}  // Pode usar outro tipo
 
     void draw() override {
         glPushMatrix();
@@ -764,6 +807,52 @@ public:
 
 };
 
+class Portal : public GameObject {
+private:
+    float destinationX, destinationZ;
+    MapType destinationMap;
+
+public:
+
+    Portal(float x, float y, float z, float size, float destX, float destZ, MapType destMap)
+        : GameObject(x, y, z, size, ObjectType::PORTAL),
+          destinationX(destX), destinationZ(destZ), destinationMap(destMap) {}
+
+    void draw() override {
+        float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+
+        glPushMatrix();
+        glTranslatef(x, y, z);
+
+        // Pulsação e cor vibrante
+        float scale = 1.0f + 0.1f * sin(time * 3.0f);
+        float r = 0.6f + 0.4f * sin(time * 2.0f);
+        float g = 0.2f + 0.3f * cos(time * 1.5f);
+        float b = 1.0f;
+
+        glColor4f(r, g, b, 0.7f);
+
+        // Anéis giratórios
+        for (int i = 0; i < 3; i++) {
+            glPushMatrix();
+            glRotatef(time * 60.0f + i * 120, 0.0f, 1.0f, 0.0f);
+            glScalef(scale, 1.0f, scale);
+            glutSolidTorus(0.05, size + 0.1f * i, 10, 20);
+            glPopMatrix();
+        }
+
+        glPopMatrix();
+    }
+
+    bool playerIsNearby(const Player& player) const {
+        float dx = x - player.getX();
+        float dz = z - player.getZ();
+        return std::sqrt(dx*dx + dz*dz) < 1.5f;
+    }
+
+    void teleport(Player& player, Game& game);
+
+};
 
 // Classe para gerenciamento do jogo
 class Game {
@@ -780,6 +869,13 @@ private:
     const float WORLD_SIZE = 20.0f;
     float lastFrameTime;
     float deltaTime;
+
+    // Dungeon
+    MapType currentMap = MapType::MAIN;
+
+
+    bool showPortalMessage = false;
+    bool inDungeon = false;
 
     // Variáveis para controle do mouse
     int lastMouseX, lastMouseY;
@@ -925,60 +1021,177 @@ public:
         trailCurvePoints.clear();
         trailClearings.clear();
 
-        float safeMargin = worldSize * 0.99f;
-        float length = 1.5f;
-        float curveAngle = M_PI / 12;
+        float minX = -worldSize;
+        float maxX = worldSize;
+        float startZ = (rand() % 2000 / 1000.0f - 1.0f) * worldSize;  // aleatório entre -worldSize e worldSize
+        float endZ = (rand() % 2000 / 1000.0f - 1.0f) * worldSize;
 
-        TrailPoint current = {
-            (float)(rand() % (int)(safeMargin * 2)) - safeMargin,
-            (float)(rand() % (int)(safeMargin * 2)) - safeMargin
-        };
+        float step = 1.0f;
+        float offset = 0.0f;
+        float curveAmplitude = 4.0f;
 
-        float direction = atan2(-current.z, -current.x); // mira no centro
-        int segments = 60;
-        bool crossedCenter = false;
+        for (float x = minX; x <= maxX; x += step) {
+            float t = (x - minX) / (maxX - minX);
+            float z = (1.0f - t) * startZ + t * endZ + std::sin(offset + t * 10.0f) * curveAmplitude;
 
-        for (int i = 0; i < segments; ++i) {
-            if (!crossedCenter && fabs(current.x) < 2.0f && fabs(current.z) < 2.0f) {
-                crossedCenter = true; // passou pelo centro
+            if (isUnderWater(x, z)) continue;
+
+            TrailPoint p;
+            p.x = x;
+            p.z = z;
+            p.y = getTerrainHeight(x, z);
+            trailCurvePoints.push_back(p);
+
+            if ((int)(x * 10) % 40 == 0) {
+                trailClearings.push_back(p);
             }
-
-            int type = rand() % 4;
-            if (crossedCenter) {
-                switch (type) {
-                    case 1: direction += curveAngle; break;
-                    case 2: direction -= curveAngle; break;
-                    case 3: direction += sin(i * 0.5f) * curveAngle * 2; break;
-                }
-            }
-
-            TrailPoint next;
-            next.x = current.x + cos(direction) * length;
-            next.z = current.z + sin(direction) * length;
-            next.y = getTerrainHeight(next.x, next.z);
-
-            if (fabs(next.x) > safeMargin || fabs(next.z) > safeMargin) {
-                float dx = -current.x;
-                float dz = -current.z;
-                direction = atan2(dz, dx);
-                next.x = current.x + cos(direction) * length;
-                next.z = current.z + sin(direction) * length;
-            }
-
-            trailCurvePoints.push_back(next);
-
-            if (i % 6 == 0 && fabs(next.x) < safeMargin && fabs(next.z) < safeMargin) {
-                trailClearings.push_back(next);
-            }
-
-            // ✨ Bifurcação ocasional
-            if (i > 10 && i % 15 == 0 && rand() % 100 < 40) {
-                generateBranch(next, direction, safeMargin);
-            }
-
-            current = next;
         }
     }
+
+
+    void loadMainMap() {
+        currentMap = MapType::MAIN;
+        gameObjects.clear();
+
+        // Céu azul
+        skyColor[0] = 0.4f; skyColor[1] = 0.7f; skyColor[2] = 1.0f;
+
+        // Jogador no centro
+        float x = 0.0f, z = 0.0f;
+        float y = getTerrainHeight(x, z) + 0.3f;
+        player.setPosition(x, y, z);
+
+        // Exemplo de árvores, inimigos, etc.
+        for (int i = 0; i < 10; i++) {
+            float ox = rand() % 20 - 10;
+            float oz = rand() % 20 - 10;
+            float oy = getTerrainHeight(ox, oz);
+            gameObjects.push_back(std::make_unique<StaticObject>(ox, oy, oz, 0.4f, ObjectType::TREE, 0.3f, 0.7f, 0.2f));
+        }
+
+        // Adiciona o portal para a dungeon
+        float px = 8.0f, pz = -5.0f;
+        float py = getTerrainHeight(px, pz);
+        gameObjects.push_back(std::make_unique<Portal>(x, y + 0.2f, z, 0.4f, 0.0f, 0.0f, MapType::DUNGEON));
+    }
+
+
+    void loadDungeonMap() {
+        currentMap = MapType::DUNGEON;
+        gameObjects.clear();
+        skyColor[0] = 0.05f; skyColor[1] = 0.05f; skyColor[2] = 0.1f;
+
+        // Limpa grid
+        for (int i = 0; i < DUNGEON_WIDTH; i++)
+            for (int j = 0; j < DUNGEON_HEIGHT; j++)
+                dungeonGrid[i][j] = false;
+
+        // Gera um "caminho" simples entre salas conectadas
+        int x = 5, z = 5;
+        dungeonGrid[x][z] = true;
+        for (int i = 0; i < 15; i++) {
+            int dir = rand() % 4;
+            switch (dir) {
+                case 0: if (x > 1) x--; break;
+                case 1: if (x < DUNGEON_WIDTH - 2) x++; break;
+                case 2: if (z > 1) z--; break;
+                case 3: if (z < DUNGEON_HEIGHT - 2) z++; break;
+            }
+            dungeonGrid[x][z] = true;
+        }
+
+        // Cria as salas no mapa
+        for (int i = 0; i < DUNGEON_WIDTH; i++) {
+            for (int j = 0; j < DUNGEON_HEIGHT; j++) {
+                if (dungeonGrid[i][j]) {
+                    float worldX = (i - DUNGEON_WIDTH / 2) * 5.0f;
+                    float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
+                    float y = getTerrainHeight(worldX, worldZ);
+
+                    // Coloca muralhas em volta de salas que não têm vizinhos
+                    float tileSize = 5.0f;  // mesmo valor usado para espaçar salas
+
+                    /*for (int d = 0; d < 4; ++d) {
+                        int dx = (d == 0) - (d == 1);
+                        int dz = (d == 2) - (d == 3);
+                        int ni = i + dx;
+                        int nj = j + dz;
+
+                        // se a sala vizinha não existe, coloca parede
+                        if (ni < 0 || nj < 0 || ni >= DUNGEON_WIDTH || nj >= DUNGEON_HEIGHT || !dungeonGrid[ni][nj]) {
+                            float wallX = worldX + dx * (tileSize / 2.0f);
+                            float wallZ = worldZ + dz * (tileSize / 2.0f);
+                            float wallY = getTerrainHeight(wallX, wallZ);
+
+                            float wallWidth = tileSize;      // Largura completa do espaço
+                            float wallHeight = 2.5f;
+                            float wallDepth = 0.5f;          // Parede fina
+
+                            gameObjects.push_back(std::make_unique<StaticObject>(
+                                wallX, wallY + wallHeight / 2.0f, wallZ, wallWidth, WALL, 0.4f, 0.4f, 0.4f
+                            ));
+                        }
+                    }*/
+
+                    // Muralha contínua ao redor da dungeon, exceto onde há o portal
+                    for (int i = 0; i < DUNGEON_WIDTH; ++i) {
+                        for (int j = 0; j < DUNGEON_HEIGHT; ++j) {
+                            bool isEdge = (i == 0 || j == 0 || i == DUNGEON_WIDTH - 1 || j == DUNGEON_HEIGHT - 1);
+                            if (isEdge) {
+                                float wx = (i - DUNGEON_WIDTH / 2) * 5.0f;
+                                float wz = (j - DUNGEON_HEIGHT / 2) * 5.0f;
+                                float wy = getTerrainHeight(wx, wz);
+
+                                // Exceção: deixar espaço para o portal
+                                bool isPortalGap = (i == DUNGEON_WIDTH / 2 && j == DUNGEON_HEIGHT - 1);
+                                if (isPortalGap) continue;
+
+                                // Define escalas diferentes para blocos horizontais e verticais
+                                float scaleX = (j == 0 || j == DUNGEON_HEIGHT - 1) ? 2.5f : 0.5f;
+                                float scaleZ = (i == 0 || i == DUNGEON_WIDTH - 1) ? 2.5f : 0.5f;
+
+                                gameObjects.push_back(std::make_unique<StaticObject>(
+                                    wx, wy + 1.0f, wz, 2.5f, WALL, scaleX, 1.0f, scaleZ
+                                ));
+                            }
+                        }
+                    }
+
+                    // Obstáculos ou paredes podem ser adicionados aqui
+                    if (rand() % 3 == 0) {
+                        gameObjects.push_back(std::make_unique<StaticObject>(
+                            worldX + 1.0f, y, worldZ + 1.0f, 0.6f, ObjectType::WALL,
+                            0.3f, 0.3f, 0.3f));
+                    }
+
+                    if (rand() % 4 == 0) {
+                        gameObjects.push_back(std::make_unique<StaticObject>(
+                            worldX + 0.5f, y + 0.3f, worldZ + 0.5f, 0.3f, ITEM, 0.9f, 0.8f, 0.1f
+                        ));
+                    }
+
+
+                    // Inimigos
+                    if (rand() % 2 == 0) {
+                        gameObjects.push_back(std::make_unique<Enemy>(
+                            worldX, y + 0.3f, worldZ, 0.5f, 2));
+                    }
+                }
+            }
+        }
+
+        // Portal de volta ao mapa principal
+        float exitX = 0.0f, exitZ = -20.0f;
+        float exitY = getTerrainHeight(exitX, exitZ);
+        gameObjects.push_back(std::make_unique<Portal>(
+            exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::MAIN));
+
+        // Jogador no centro da dungeon
+        float startX = 0.0f, startZ = 0.0f;
+        float startY = getTerrainHeight(startX, startZ) + 0.3f;
+        player.setPosition(startX, startY, startZ);
+    }
+
 
     void initObjects() {
         // Criar árvores aleatórias
@@ -1073,7 +1286,43 @@ public:
             }
         }
 
+        // Portal para a dungeon
+        addPortalNearEdge(WORLD_SIZE, 1.5f, -15.0f, -15.0f); // Dungeon 1
+        addPortalNearEdge(WORLD_SIZE, 1.5f, 15.0f, -15.0f);  // Dungeon 2
+        addPortalNearEdge(WORLD_SIZE, 1.5f, -15.0f, 15.0f);  // Dungeon 3
+        addPortalNearEdge(WORLD_SIZE, 1.5f, 0.0f, 0.0f);     // Retorno ao centro
+
     }
+
+    void addPortalNearEdge(float worldSize, float margin, float destX, float destZ) {
+        float edge = worldSize - margin;
+        float x = 0.0f, z = 0.0f;
+
+        int side = rand() % 4;  // 0: cima, 1: baixo, 2: esquerda, 3: direita
+
+        switch (side) {
+            case 0:  // topo
+                x = (rand() % (int)(worldSize * 2)) - worldSize;
+                z = edge;
+                break;
+            case 1:  // baixo
+                x = (rand() % (int)(worldSize * 2)) - worldSize;
+                z = -edge;
+                break;
+            case 2:  // esquerda
+                x = -edge;
+                z = (rand() % (int)(worldSize * 2)) - worldSize;
+                break;
+            case 3:  // direita
+                x = edge;
+                z = (rand() % (int)(worldSize * 2)) - worldSize;
+                break;
+        }
+
+        float y = getTerrainHeight(x, z);
+        gameObjects.push_back(std::make_unique<Portal>(x, y + 0.2f, z, 0.4f, destX, destZ, MapType::MAIN));
+    }
+
 
     void update() {
         // Calcular deltaTime
@@ -1125,6 +1374,21 @@ public:
 
         // Manter o jogador dentro dos limites do mundo
         constrainPlayer();
+
+        showPortalMessage = false;
+
+        for (auto& obj : gameObjects) {
+            Portal* portal = dynamic_cast<Portal*>(obj.get());
+            if (portal && portal->playerIsNearby(player)) {
+                showPortalMessage = true;
+
+                if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
+                    portal->teleport(player, *this);
+                    std::cout << ">> Teleportado para nova área!" << std::endl;
+                }
+            }
+        }
+
     }
 
     void render() {
@@ -1184,16 +1448,32 @@ public:
         const float step = 1.0f;
         const float size = WORLD_SIZE;
 
-        GLfloat ambient[]  = {0.1f, 0.6f, 0.35f, 1.0f};
-        GLfloat diffuse[]  = {0.1f, 0.3f, 0.1f, 1.0f};
-        GLfloat specular[] = {0.05f, 0.05f, 0.05f, 1.0f};
-        GLfloat shininess  = 5.0f;
+        if (currentMap == MapType::DUNGEON) {
+            // Chão cinza na dungeon
+            GLfloat ambient[]  = {0.2f, 0.2f, 0.2f, 1.0f};
+            GLfloat diffuse[]  = {0.3f, 0.3f, 0.3f, 1.0f};
+            GLfloat specular[] = {0.1f, 0.1f, 0.1f, 1.0f};
+            GLfloat shininess  = 10.0f;
 
-        glDisable(GL_COLOR_MATERIAL);
-        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
-        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
-        glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
-        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+            glDisable(GL_COLOR_MATERIAL);
+            glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+            glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+            glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+            glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+        } else {
+            // Cor normal do chão no mapa principal
+            GLfloat ambient[]  = {0.1f, 0.6f, 0.35f, 1.0f};
+            GLfloat diffuse[]  = {0.1f, 0.3f, 0.1f, 1.0f};
+            GLfloat specular[] = {0.05f, 0.05f, 0.05f, 1.0f};
+            GLfloat shininess  = 5.0f;
+
+            glDisable(GL_COLOR_MATERIAL);
+            glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+            glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+            glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+            glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+        }
+
 
         for (float x = -size; x < size; x += step) {
             for (float z = -size; z < size; z += step) {
@@ -1210,40 +1490,54 @@ public:
                 glEnd();
             }
         }
-        // Desenhar trilhas por cima do relevo
-        GLfloat trailColor[] = {0.4f, 0.3f, 0.1f};
+
+        // Trilhas
+        GLfloat trailColor[] = {0.5f, 0.4f, 0.2f};
         glDisable(GL_COLOR_MATERIAL);
         glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, trailColor);
 
-        glBegin(GL_QUADS);
-        for (const auto& p : trailCurvePoints) {
-            float y = getTerrainHeight(p.x, p.z) + 0.01f;  // levemente acima do solo
-            float size = 1.0f;
+        float trailWidth = 0.5f; // mais sutil
+        for (size_t i = 1; i < trailCurvePoints.size(); ++i) {
+            TrailPoint p1 = trailCurvePoints[i - 1];
+            TrailPoint p2 = trailCurvePoints[i];
 
-            glVertex3f(p.x - size, y, p.z - size);
-            glVertex3f(p.x + size, y, p.z - size);
-            glVertex3f(p.x + size, y, p.z + size);
-            glVertex3f(p.x - size, y, p.z + size);
+            p1.y = getTerrainHeight(p1.x, p1.z) + 0.01f;
+            p2.y = getTerrainHeight(p2.x, p2.z) + 0.01f;
+
+            float dx = p2.z - p1.z;
+            float dz = -(p2.x - p1.x);
+            float len = std::sqrt(dx * dx + dz * dz);
+            dx /= len; dz /= len;
+
+            glBegin(GL_TRIANGLE_STRIP);
+            glVertex3f(p1.x + dx * trailWidth, p1.y, p1.z + dz * trailWidth);
+            glVertex3f(p1.x - dx * trailWidth, p1.y, p1.z - dz * trailWidth);
+            glVertex3f(p2.x + dx * trailWidth, p2.y, p2.z + dz * trailWidth);
+            glVertex3f(p2.x - dx * trailWidth, p2.y, p2.z - dz * trailWidth);
+            glEnd();
         }
 
-        // Clareiras maiores
+        // Clareiras
         for (const auto& c : trailClearings) {
-            float y = getTerrainHeight(c.x, c.z) + 0.01f;
-            float radius = 2.5f;
-            for (float angle = 0; angle < 360.0f; angle += 10.0f) {
-                float rad1 = angle * M_PI / 180.0f;
-                float rad2 = (angle + 10.0f) * M_PI / 180.0f;
+            float radius = 1.5f;
+            float segments = 16.0f;
+            float centerY = getTerrainHeight(c.x, c.z) + 0.01f;
 
-                glVertex3f(c.x, y, c.z);
-                glVertex3f(c.x + cos(rad1) * radius, y, c.z + sin(rad1) * radius);
-                glVertex3f(c.x + cos(rad2) * radius, y, c.z + sin(rad2) * radius);
-                glVertex3f(c.x, y, c.z);
+            glBegin(GL_TRIANGLE_FAN);
+            glVertex3f(c.x, centerY, c.z);
+            for (int i = 0; i <= segments; ++i) {
+                float angle = 2.0f * M_PI * i / segments;
+                float x = c.x + std::cos(angle) * radius;
+                float z = c.z + std::sin(angle) * radius;
+                float y = getTerrainHeight(x, z) + 0.01f;
+                glVertex3f(x, y, z);
             }
+            glEnd();
         }
-        glEnd();
     }
 
     void drawLakes() {
+        float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
         std::vector<std::pair<float, float>> lakeCenters = {
             {5.0f, 5.0f},
             {-7.0f, -3.0f},
@@ -1260,20 +1554,22 @@ public:
             float cz = center.second;
             float radius = 3.5f;
 
-            // Encontrar a altura mais alta da borda
-            float maxEdgeHeight = -1000.0f;
+            // altura da água
+            float minEdgeHeight = 1000.0f;
             for (int angle = 0; angle < 360; angle += 10) {
                 float rad = angle * M_PI / 180.0f;
                 float x = cx + cos(rad) * radius;
                 float z = cz + sin(rad) * radius;
-                float h = getTerrainHeight(x, z);
-                if (h > maxEdgeHeight) maxEdgeHeight = h;
+                float height = getTerrainHeight(x, z);
+                if (height < minEdgeHeight) {
+                    minEdgeHeight = height;
+                }
             }
-
-            float waterHeight = maxEdgeHeight - 0.02f;
+            float waterHeight = minEdgeHeight - 0.02f; // ligeiramente abaixo da borda mais baixa
 
             // Cor da água
-            glColor4f(0.0f, 0.4f, 0.8f, 0.5f); // azul translúcido
+            float depthColor = std::min(1.0f, (waterHeight + 1.0f) / 5.0f);
+            glColor4f(0.0f, 0.4f + 0.1f * sin(time), 0.7f, 0.25f);
 
             // Desenhar tampo superior (superfície da água)
             glBegin(GL_TRIANGLE_FAN);
@@ -1282,21 +1578,19 @@ public:
                 float rad = angle * M_PI / 180.0f;
                 float x = cx + cos(rad) * radius;
                 float z = cz + sin(rad) * radius;
-                glVertex3f(x, waterHeight, z);
+                float wave = sin(rad * 4 + time * 2) * 0.02f;
+
+                float terrainHeight = getTerrainHeight(x, z);
+                float depth = waterHeight - terrainHeight;
+
+                // Mapeia profundidade para alpha (quanto mais fundo, menos transparente)
+                float alpha = std::min(0.5f, std::max(0.15f, depth * 0.8f));  // ajuste fino aqui
+                glColor4f(0.2f, 0.6f + 0.1f * sin(time), 0.8f, alpha);
+
+                glVertex3f(x, waterHeight + wave, z);
             }
             glEnd();
 
-            // Desenhar as laterais (volume)
-            glBegin(GL_QUAD_STRIP);
-            for (int angle = 0; angle <= 360; angle += 10) {
-                float rad = angle * M_PI / 180.0f;
-                float x = cx + cos(rad) * radius;
-                float z = cz + sin(rad) * radius;
-                float bottomY = getTerrainHeight(x, z);
-                glVertex3f(x, bottomY, z);      // ponto inferior (no relevo)
-                glVertex3f(x, waterHeight, z);  // ponto superior (nível da água)
-            }
-            glEnd();
         }
 
         glDisable(GL_BLEND);
@@ -1436,6 +1730,12 @@ public:
         drawText(windowWidth - 200, 60, "W,A,S,D - Movimento");
         drawText(windowWidth - 200, 40, "Q,E - Rotacao");
         drawText(windowWidth - 200, 20, "Espaco - Ataque");
+
+
+        if (showPortalMessage) {
+            glColor3f(1.0f, 1.0f, 0.0f);
+            drawText(glutGet(GLUT_WINDOW_WIDTH) / 2 - 100, 100, "Pressione [Enter] para entrar");
+        }
 
         // Restaurar matrizes e estados
         glMatrixMode(GL_PROJECTION);
@@ -1838,32 +2138,28 @@ public:
     }
 
     void checkCollisions() {
-        // Verificar colisões entre o jogador e objetos
         for (auto& object : gameObjects) {
-            if (!object->isActive()) continue;
+            if (!object->isActive() || !object->isCollidable()) continue;
 
             if (player.checkCollision(*object)) {
-                // Se for um item, coletar
                 if (object->getType() == ITEM) {
                     object->setActive(false);
-                    player.heal(10.0f);  // Cura
-                    player.addExperience(10000);  // Pequena quantidade de XP
+                    player.heal(10.0f);
+                    player.addExperience(10000);
                     std::cout << "Item coletado! +10 XP, +10 Vida" << std::endl;
                     continue;
                 }
 
-                // Para outros objetos, implementar resposta à colisão
                 float dx = player.getX() - object->getX();
                 float dz = player.getZ() - object->getZ();
                 float dist = std::sqrt(dx*dx + dz*dz);
 
-                if (dist > 0.1f) {  // Evitar divisão por zero
+                if (dist > 0.1f) {
                     float overlap = (player.getSize() + object->getSize()) - dist;
                     float x = player.getX() + (dx / dist) * overlap * 1.1f;
                     float z = player.getZ() + (dz / dist) * overlap * 1.1f;
                     player.setPosition(x, player.getY(), z);
                 } else {
-                    // Se muito próximo, empurrar em uma direção aleatória
                     float x = player.getX() + ((float)rand() / RAND_MAX * 2.0f - 1.0f) * 0.1f;
                     float z = player.getZ() + ((float)rand() / RAND_MAX * 2.0f - 1.0f) * 0.1f;
                     player.setPosition(x, player.getY(), z);
@@ -1871,6 +2167,7 @@ public:
             }
         }
     }
+
 
     void constrainPlayer() {
         // Manter o jogador dentro dos limites do mundo
@@ -2171,6 +2468,17 @@ public:
         return instance;
     }
 };
+
+void Portal::teleport(Player& player, Game& game) {
+    if (destinationMap == MapType::DUNGEON) {
+        game.loadDungeonMap();
+    } else if (destinationMap == MapType::MAIN) {
+        game.loadMainMap();
+    } else {
+        float y = getTerrainHeight(destinationX, destinationZ) + 0.3f;
+        player.setPosition(destinationX, y, destinationZ);
+    }
+}
 
 // Funções globais para callbacks do GLUT
 void display() { Game::displayCallback(); }
