@@ -6,7 +6,6 @@
 
 # Ignora todos os arquivos da pasta .vscode
 .vscode/
-./src/audios/*.wav
 
 # (Opcional) Se quiser manter algumas configurações específicas, você pode negar certos arquivos:
 !.vscode/c_cpp_properties.json
