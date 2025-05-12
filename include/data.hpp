@@ -58,7 +58,7 @@ enum SkillType
     ATTACK,
     DEFENSE,
     MAGIC,
-    SPEED
+    SPEED,
 };
 
 enum class AttackType
@@ -86,7 +86,10 @@ enum class MapType
     PARASIDE,
     HOUSE
 };
-
+struct Color
+{
+    float r = 0.5f, g = 0.5f, b = 0.5f;
+};
 struct GrassPatch
 {
     float x, z;   // centro
@@ -105,6 +108,27 @@ struct SkillTooltip
     float x, y; // Posição na tela
     float width, height;
     bool showConfirmation;
+};
+
+enum STATE_GAME
+{
+    PLAYING_EXPLORER,
+    COMBAT,
+    SKILL_TREE,
+    GAME_OVER,
+    MENU,
+    MENU_CONFIG,
+    MENU_CREDITS,
+    TOP_VIEW_MAP,
+    STATE_EXIT,
+};
+
+struct Material
+{
+    Color ambient;   // Cor ambiente
+    Color diffuse;   // Cor difusa
+    Color specular;  // Cor especular
+    float shininess; // Brilho
 };
 
 struct SkillNode
@@ -129,30 +153,8 @@ struct Scale
     float x = 1.0f, y = 1.0f, z = 1.0f;
 };
 
-struct Color
-{
-    float r = 0.5f, g = 0.5f, b = 0.5f;
-};
-struct Material
-{
-    Color ambient;   // Cor ambiente
-    Color diffuse;   // Cor difusa
-    Color specular;  // Cor especular
-    float shininess; // Brilho
-};
 
-enum STATE_GAME
-{
-    PLAYING_EXPLORER,
-    COMBAT,
-    SKILL_TREE,
-    GAME_OVER,
-    MENU,
-    MENU_CONFIG,
-    MENU_CREDITS,
-    TOP_VIEW_MAP,
-    STATE_EXIT,
-};
+
 
 // Button action enum
 enum class ACTION_BUTTON
@@ -190,10 +192,10 @@ struct Botao
 
 struct Volume
 {
-    float ambient = 1.0f;
-    float musica = 1.0f;
-    float efeitos = 1.0f;
-    float UI = 1.0f;
+    float ambient = 0.5f;
+    float musica = 0.5f;
+    float efeitos = 0.5f;
+    float UI = 0.5f;
 };
 
 /**

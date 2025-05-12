@@ -1025,51 +1025,96 @@ void HUD::renderizarMenuCreditos()
     std::string version = "Versão 1.0 © 2024";
     drawText(windowWidth - 200, 120, version.c_str(), 12);
 }
-void HUD::renderizarTelaDesejaJogar()
-{
-    const int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
-    const int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
-
+void HUD::renderizarTelaDesejaJogar() {
+    const GLint windowWidth = glutGet(GLUT_WINDOW_WIDTH);
+    const GLint windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+    
     botoesMenu.clear();
-    botoesMenu.push_back({"Sim", windowWidth / 2 - 120.f, windowHeight / 2.0f, 100.0f, 40.0f, 0.1f, 0.6f, 0.2f, false, ACTION_BUTTON::RESET_ALL});
-    botoesMenu.push_back({"Não", windowWidth / 2 + 20.f, windowHeight / 2.0f, 100.0f, 40.0f, 0.6f, 0.1f, 0.2f, false, ACTION_BUTTON::EXIT});
-
+    botoesMenu.push_back({"JOGAR NOVAMENTE", windowWidth / 2 - 150.f, windowHeight / 2 + 20.0f, 140.0f, 50.0f, 0.0f, 0.7f, 1.0f, false, ACTION_BUTTON::RESET_ALL});
+    botoesMenu.push_back({"SAIR", windowWidth / 2 + 50.f, windowHeight / 2 + 20.0f, 140.0f, 50.0f, 0.9f, 0.2f, 0.2f, false, ACTION_BUTTON::EXIT});
+    
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // Fundo escurecido
+    
+    // Fundo com gradiente azul escuro
     glBegin(GL_QUADS);
-    glColor4f(0.0f, 0.0f, 0.0f, 0.7f);
+    glColor4f(0.05f, 0.1f, 0.2f, 1.0f); // Azul escuro no topo
     glVertex2f(0, 0);
     glVertex2f(windowWidth, 0);
+    glColor4f(0.1f, 0.2f, 0.35f, 1.0f); // Azul menos escuro no fundo
     glVertex2f(windowWidth, windowHeight);
     glVertex2f(0, windowHeight);
     glEnd();
-
-    // Texto de confirmação
-    glColor3f(1.0f, 1.0f, 1.0f);
-    std::string texto = "Deseja iniciar um novo jogo? Tudo será resetado.";
+    
+    // Painel central clean e minimalista
+    float panelWidth = windowWidth * 0.5f;
+    float panelHeight = windowHeight * 0.4f;
+    float panelX = (windowWidth - panelWidth) / 2;
+    float panelY = (windowHeight - panelHeight) / 2;
+    
+    // Painel principal com azul transparente
+    glBegin(GL_QUADS);
+    glColor4f(0.0f, 0.15f, 0.3f, 0.7f);
+    glVertex2f(panelX, panelY);
+    glVertex2f(panelX + panelWidth, panelY);
+    glVertex2f(panelX + panelWidth, panelY + panelHeight);
+    glVertex2f(panelX, panelY + panelHeight);
+    glEnd();
+    
+    // Borda sutil do painel
+    glLineWidth(2.0f);
+    glBegin(GL_LINE_LOOP);
+    glColor4f(0.2f, 0.5f, 1.0f, 0.6f); // Azul mais claro para a borda
+    glVertex2f(panelX, panelY);
+    glVertex2f(panelX + panelWidth, panelY);
+    glVertex2f(panelX + panelWidth, panelY + panelHeight);
+    glVertex2f(panelX, panelY + panelHeight);
+    glEnd();
+    
+    // Título "GAME OVER" clean
+    glColor3f(1.0f, 1.0f, 1.0f); // Branco para melhor visibilidade
+    std::string gameOverText = "GAME OVER";
+    float gameOverSize = 32.0f;
+    float gameOverWidth = gameOverText.length() * (gameOverSize * 0.6f);
+    drawText((windowWidth / 2) - (gameOverWidth / 2), windowHeight / 2 - 80, gameOverText.c_str(), gameOverSize);
+    
+    // Texto de confirmação clean
+    glColor3f(0.7f, 0.8f, 1.0f);
+    std::string texto = "Deseja jogar novamente?";
     float textWidth = texto.length() * 12.0f;
-    drawText((windowWidth / 2) - (textWidth / 2), windowHeight / 2 - 60, texto.c_str(), 18);
-
-    // Renderizando os botões
-    for (size_t i = 0; i < botoesMenu.size(); ++i)
-    {
+    drawText((windowWidth / 2) - (textWidth / 2), windowHeight / 2 - 20, texto.c_str(), 20);
+    
+    // Renderizando os botões com estilo clean
+    for (size_t i = 0; i < botoesMenu.size(); ++i) {
         const auto &botao = botoesMenu[i];
-
+        
+        // Botão com design clean
         glBegin(GL_QUADS);
-        glColor4f(botao.r, botao.g, botao.b, 0.7f);
+        if (i == 0) { // Botão "JOGAR NOVAMENTE" - Azul
+            glColor4f(botao.r, botao.g, botao.b, 0.8f);
+        } else { // Botão "SAIR" - Vermelho
+            glColor4f(botao.r, botao.g, botao.b, 0.8f);
+        }
         glVertex2f(botao.x, botao.y);
         glVertex2f(botao.x + botao.width, botao.y);
         glVertex2f(botao.x + botao.width, botao.y + botao.height);
         glVertex2f(botao.x, botao.y + botao.height);
         glEnd();
-
-        // Verificando hover
-        if (i == hoveredButtonID)
-        {
-            glColor4f(0.3f, 0.5f, 0.8f, 0.8f);
-            glLineWidth(3.0f);
+        
+        // Borda clean dos botões
+        glLineWidth(1.5f);
+        glBegin(GL_LINE_LOOP);
+        glColor4f(1.0f, 1.0f, 1.0f, 0.6f); // Borda branca sutil
+        glVertex2f(botao.x, botao.y);
+        glVertex2f(botao.x + botao.width, botao.y);
+        glVertex2f(botao.x + botao.width, botao.y + botao.height);
+        glVertex2f(botao.x, botao.y + botao.height);
+        glEnd();
+        
+        // Verificando hover com efeito sutil
+        if (i == hoveredButtonID) {
+            glColor4f(1.0f, 1.0f, 1.0f, 0.3f); // Brilho branco sutil
+            glLineWidth(2.0f);
             glBegin(GL_LINE_LOOP);
             glVertex2f(botao.x - 3, botao.y - 3);
             glVertex2f(botao.x + botao.width + 3, botao.y - 3);
@@ -1077,13 +1122,14 @@ void HUD::renderizarTelaDesejaJogar()
             glVertex2f(botao.x - 3, botao.y + botao.height + 3);
             glEnd();
         }
-
+        
+        // Texto do botão
         float textWidth = botao.texto.length() * 10.0f;
         float textX = botao.x + (botao.width - textWidth) / 2;
         float textY = botao.y + (botao.height - 15) / 2;
-
-        glColor3f(1.0f, 1.0f, 1.0f);
-        drawText(textX, textY, botao.texto.c_str());
+        
+        glColor3f(1.0f, 1.0f, 1.0f); // Texto branco para contraste
+        drawText(textX, textY, botao.texto.c_str(), 16);
     }
 }
 

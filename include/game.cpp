@@ -587,21 +587,21 @@ void Game::loadParasideMap()
 {
     currentMap = MapType::PARASIDE;
     gameObjects.clear();
-    
+
     // Céu azul claro para um efeito paradisíaco
     skyColor[0] = 0.7f;
     skyColor[1] = 0.9f;
     skyColor[2] = 1.0f;
-    
+
     // Limpa grid
     for (int i = 0; i < DUNGEON_WIDTH; i++)
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
             dungeonGrid[i][j] = false;
-    
+
     // Área central mais aberta para o checkpoint
     float centerX = 0.0f;
     float centerZ = 0.0f;
-    
+
     // Área gramada com árvores e flores
     for (int i = 2; i < DUNGEON_WIDTH - 2; i++)
     {
@@ -610,20 +610,20 @@ void Game::loadParasideMap()
             float worldX = (i - DUNGEON_WIDTH / 2) * 5.0f;
             float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
             float distToCenter = sqrt(pow(worldX - centerX, 2) + pow(worldZ - centerZ, 2));
-            
+
             // Mantém o centro mais limpo para o checkpoint
             if (distToCenter < 5.0f)
                 continue;
-                
+
             float y = getTerrainHeight(worldX, worldZ);
-            
+
             // Adiciona árvores com densidade menor (mais espaçadas)
             if (rand() % 8 == 0)
             {
                 gameObjects.push_back(std::make_unique<StaticObject>(
                     worldX, y, worldZ, 1.0f, ObjectType::TREE, 0.8f, 3.5f, 0.8f));
             }
-            
+
             // Adiciona pedras pequenas espalhadas
             else if (rand() % 15 == 0)
             {
@@ -632,62 +632,65 @@ void Game::loadParasideMap()
             }
         }
     }
-    
+
     // Adiciona o checkpoint com fogueira no centro
     float checkpointX = centerX;
     float checkpointZ = centerZ;
     float checkpointY = getTerrainHeight(checkpointX, checkpointZ);
-    
+
     // Adiciona pedras em círculo para a fogueira
     float stoneDiameter = 0.5f;
     int numStones = 8;
     float radius = 1.5f;
-    
-    for (int i = 0; i < numStones; i++) {
+
+    for (int i = 0; i < numStones; i++)
+    {
         float angle = i * (2 * M_PI / numStones);
         float stoneX = checkpointX + radius * cos(angle);
         float stoneZ = checkpointZ + radius * sin(angle);
         float stoneY = getTerrainHeight(stoneX, stoneZ);
-        
+
         gameObjects.push_back(std::make_unique<StaticObject>(
             stoneX, stoneY, stoneZ, 0.3f, ObjectType::ROCK, stoneDiameter, stoneDiameter * 0.7f, stoneDiameter));
     }
-    
+
     // Adiciona a fogueira no centro
     gameObjects.push_back(std::make_unique<StaticObject>(
         checkpointX, checkpointY, checkpointZ, 0.8f, ObjectType::BONFIRE, 1.0f, 1.0f, 1.0f));
-    
+
     // Adiciona alguns troncos ao redor da fogueira
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++)
+    {
         float angle = i * (2 * M_PI / 3);
         float logX = checkpointX + 3.0f * cos(angle);
         float logZ = checkpointZ + 3.0f * sin(angle);
         float logY = getTerrainHeight(logX, logZ);
-        
+
         gameObjects.push_back(std::make_unique<StaticObject>(
             logX, logY, logZ, 0.5f, ObjectType::ROCK, 1.5f, 0.5f, 0.5f));
     }
-    
+
     // Portal para voltar ao mapa principal
     float exitX = 0.0f, exitZ = -20.0f;
     float exitY = getTerrainHeight(exitX, exitZ);
     gameObjects.push_back(std::make_unique<Portal>(
         exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::MAIN));
-    
+
     // Adiciona algumas pedras destacando o caminho para o portal
-    for (int i = 1; i <= 5; i++) {
+    for (int i = 1; i <= 5; i++)
+    {
         float pathX = exitX + 2.0f;
         float pathZ = exitZ + i * 3.0f;
         float pathY = getTerrainHeight(pathX, pathZ);
-        
+
         gameObjects.push_back(std::make_unique<StaticObject>(
             pathX, pathY, pathZ, 0.3f, ObjectType::ROCK, 0.6f, 0.4f, 0.6f));
-        
+
         pathX = exitX - 2.0f;
         gameObjects.push_back(std::make_unique<StaticObject>(
             pathX, pathY, pathZ, 0.3f, ObjectType::ROCK, 0.6f, 0.4f, 0.6f));
     }
-    
+
     // Posicionamento inicial do jogador próximo à fogueira
     float startX = checkpointX + 1.0f;
     float startZ = checkpointZ;
@@ -852,34 +855,38 @@ void Game::update()
     if (player.getHealth() == 0)
     {
         gameMode = STATE_GAME::GAME_OVER;
-
-        if (!gameOverSoundPlayed)
-        {
+        if (sound.isAudioPlaying(0))
             sound.stopAudioRepeter(0);
+        if (sound.isAudioPlaying(9))
             sound.stopAudioRepeter(9);
+        if (sound.isAudioPlaying(1))
             sound.stopAudioRepeter(1);
+        if (sound.isAudioPlaying(6))
             sound.stopAudioRepeter(6);
+        if (sound.isAudioPlaying(8))
             sound.stopAudioRepeter(8);
+        if (sound.isAudioPlaying(15))
             sound.stopAudioRepeter(15);
+        if (sound.isAudioPlaying(19))
             sound.stopAudioRepeter(19);
+        if (sound.isAudioPlaying(18))
             sound.stopAudioRepeter(18);
+        if (sound.isAudioPlaying(17))
             sound.stopAudioRepeter(17);
-            sound.playAudioRepeter(20, volume.musica);
-            gameOverSoundPlayed = true;
-        }
+        sound.playAudioRepeter(20, volume.musica);
     }
     else
     {
         sound.stopAudioRepeter(20);
-        gameOverSoundPlayed = false;
     }
 
     constrainPlayer();
     animateSwordAttack(currentTime, loader, getPlayer(), camera);
 
-    if (currentMap == MapType::MAIN)
+    if (currentMap == MapType::MAIN && gameMode != STATE_GAME::GAME_OVER)
     {
-        if (sound.isAudioPlaying(19)) sound.stopAudioRepeter(19);
+        if (sound.isAudioPlaying(19))
+            sound.stopAudioRepeter(19);
         if (!sound.isAudioPlaying(6))
         {
             sound.playAudioRepeter(6, volume.ambient);
@@ -902,7 +909,7 @@ void Game::update()
             }
         }
     }
-    if (currentMap == MapType::DUNGEON_ONE_LEVEL)
+    if (currentMap == MapType::DUNGEON_ONE_LEVEL && gameMode != STATE_GAME::GAME_OVER)
     {
         if (!sound.isAudioPlaying(8))
         {
@@ -911,7 +918,7 @@ void Game::update()
             sound.stopAudioRepeter(6);
         }
     }
-    if (currentMap == MapType::DUNGEON_TWO_LEVEL)
+    if (currentMap == MapType::DUNGEON_TWO_LEVEL && gameMode != STATE_GAME::GAME_OVER)
     {
         if (!sound.isAudioPlaying(9))
         {
@@ -920,7 +927,7 @@ void Game::update()
             sound.stopAudioRepeter(6);
         }
     }
-    if (currentMap == MapType::PARASIDE)
+    if (currentMap == MapType::PARASIDE && gameMode != STATE_GAME::GAME_OVER)
     {
         if (!sound.isAudioPlaying(19))
         {
@@ -929,9 +936,9 @@ void Game::update()
             sound.stopAudioRepeter(9);
         }
     }
-    if (currentMap == MapType::BOSS)
+    if (currentMap == MapType::BOSS && gameMode != STATE_GAME::GAME_OVER)
     {
-        if (!sound.isAudioPlaying(15) && !BossDefeat)
+        if (!sound.isAudioPlaying(15) && !BossDefeat && gameMode != STATE_GAME::GAME_OVER)
         {
             sound.playAudioRepeter(15, volume.musica);
             sound.stopAudioRepeter(0);
@@ -1678,7 +1685,7 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
                     {
                         isAttacking = true;
                         attackProgress = 0.0f;
-                        enemy->takeDamage(player.getAttackDamage(), AttackType::PHYSICAL);
+                        enemy->takeDamage(player.getAttackDamage() * 0.8f, AttackType::PHYSICAL);
                         sound.playAudio(2, volume.efeitos);
                         break;
                     }
@@ -1693,7 +1700,7 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
                     {
                         isAttacking = true;
                         attackProgress = 0.0f;
-                        cat->takeDamage(player.getAttackDamage(), AttackType::PHYSICAL);
+                        cat->takeDamage(player.getAttackDamage() * 0.7f, AttackType::PHYSICAL);
                         sound.playAudio(2, volume.efeitos);
                         break;
                     }
@@ -1717,7 +1724,7 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
                         if (dist < 4.0f)
                         {
                             sound.playAudio(14, volume.efeitos);
-                            float damage = player.getAttackDamage() * 1.5f;
+                            float damage = player.getAttackDamage() * 0.5f;
                             enemy->takeDamage(damage, AttackType::FIRE);
                         }
                     }
@@ -1732,7 +1739,7 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
                         {
                             isAttacking = true;
                             attackProgress = 0.0f;
-                            boss->takeDamage(player.getAttackDamage(), AttackType::PHYSICAL);
+                            boss->takeDamage(player.getAttackDamage() * 0.4f, AttackType::PHYSICAL);
                             sound.playAudio(2, volume.efeitos);
                             break;
                         }
@@ -1896,7 +1903,7 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
                         {
                             isAttacking = true;
                             attackProgress = 0.0f;
-                            boss->takeDamage(player.getAttackDamage(), AttackType::PHYSICAL);
+                            boss->takeDamage(player.getAttackDamage() * 0.9f, AttackType::PHYSICAL);
                             sound.playAudio(2, volume.efeitos);
                             break;
                         }
@@ -1966,7 +1973,7 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
                 case ACTION_BUTTON::RESET_ALL:
                     gameObjects.clear();
                     player.reset();
-                    player.setPosition(0.0f,getTerrainHeight(0.0f, 0.0f) + 0.3f, 0.0f);
+                    player.setPosition(0.0f, getTerrainHeight(0.0f, 0.0f) + 0.3f, 0.0f);
                     initObjects();
                     gameMode = STATE_GAME::PLAYING_EXPLORER;
                     currentMap = MapType::MAIN;
@@ -2065,7 +2072,7 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
                         if (dist < 4.0f)
                         {
                             sound.playAudio(14, volume.efeitos);
-                            float damage = player.getAttackDamage() * 1.5f;
+                            float damage = player.getAttackDamage() * 0.5f;
                             enemy->takeDamage(damage, AttackType::FIRE);
                         }
                     }
@@ -2079,7 +2086,7 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
                         {
                             isAttacking = true;
                             attackProgress = 0.0f;
-                            boss->takeDamage(player.getAttackDamage() * 1.5f, AttackType::PHYSICAL);
+                            boss->takeDamage(player.getAttackDamage() * 0.4f, AttackType::PHYSICAL);
                             sound.playAudio(14, volume.efeitos);
                         }
                     }
@@ -2466,6 +2473,15 @@ void Game::handleButtonMenuClick(int x, int y)
             case ACTION_BUTTON::VOLUME_UI_INCREASE:
                 volume.UI = std::min(1.0f, volume.UI + volumeChange);
                 volumeChanged = true;
+                break;
+            case ACTION_BUTTON::RESET_ALL:
+                gameObjects.clear();
+                player.reset();
+                player.setPosition(0.0f, getTerrainHeight(0.0f, 0.0f) + 0.3f, 0.0f);
+                initObjects();
+                gameMode = STATE_GAME::PLAYING_EXPLORER;
+                currentMap = MapType::MAIN;
+                button_action = ACTION_BUTTON::NONE;
                 break;
             }
 
