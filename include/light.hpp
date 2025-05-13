@@ -1,17 +1,10 @@
 #ifndef LIGHT_HPP
 #define LIGHT_HPP
+#include <GL/glut.h>
 
-#include "data.hpp"
-#include <vector>
-
-/**
- * @brief Classe responsável por Iluminar os elementos visuais do jogo.
- *
- * Esta classe contempla o terreno, Coordenadas das luzes, e intensidades.
- */
-class Light
-{
+class Light {
 public:
+    static void initLight();
 };
 
-#endif // GUI_GAME_HPP
+#endif // LIGHT_HPP

@@ -74,11 +74,12 @@ int main(int argc, char **argv)
     glutInitWindowSize(800, 600);
     glutInitWindowPosition(100, 100);
     glutCreateWindow("RPG DA SHOPEE");
-    // glutFullScreen(); 
+    glutFullScreen(); 
     init();
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
     glutKeyboardFunc(keyboard);
+    // glutSetCursor(GLUT_CURSOR_NONE);
     glutSpecialFunc(specialKeys);
     glutKeyboardUpFunc(keyboardUp);
     glutTimerFunc(16, update, 0);

@@ -32,7 +32,7 @@ void Camera::toggleTopDown(STATE_GAME &gameMode)
 
 void Camera::adjustHeight(int deltaY)
 {
-    height -= deltaY * sensitivity * 0.05f;
+    height -= deltaY * sensitivity * 0.1f;
     if (height < 0.5f)
         height = 0.5f;
     if (height > 5.0f)

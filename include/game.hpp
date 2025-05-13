@@ -124,9 +124,9 @@ public:
     void animateSwordAttack(float currentTime, MeshLoader &loader, const Player &player, const Camera &camera);
 
     // -- Formas auxiliares --
-    void drawFilledCircle(float x, float y, float radius, int segments);
-    void drawCircle(float x, float y, float radius, int segments);
-    void drawStar(float x, float y, float radius, int points);
+    void checkPortals();
+    void adjustPlayerHeight();
+    void updatePlayerAttackState();
 
     // -- Mouse Picking --
     void checkSkillTreeClick(int x, int y);

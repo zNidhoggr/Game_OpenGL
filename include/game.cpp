@@ -265,12 +265,10 @@ void Game::loadDungeonMap()
     skyColor[1] = 0.05f;
     skyColor[2] = 0.1f;
 
-    // Limpa grid
     for (int i = 0; i < DUNGEON_WIDTH; i++)
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
             dungeonGrid[i][j] = false;
 
-    // Gera um "caminho" simples entre salas conectadas
     int x = 5, z = 5;
     dungeonGrid[x][z] = true;
     for (int i = 0; i < 15; i++)
@@ -891,21 +889,21 @@ void Game::update()
         {
             sound.playAudioRepeter(6, volume.ambient);
         }
-        if (gameMode != STATE_GAME::COMBAT)
-        {
-            if (!sound.isAudioPlaying(0))
-            {
-                sound.playAudioRepeter(0, volume.musica);
-                sound.stopAudioRepeter(1);
-            }
-        }
-        else
+        if (gameMode == STATE_GAME::COMBAT)
         {
             if (!sound.isAudioPlaying(1))
             {
-                sound.playAudioRepeter(1, volume.musica);
-                sound.stopAudioRepeter(0);
-                sound.stopAudioRepeter(8);
+            sound.playAudioRepeter(1, volume.musica);
+            sound.stopAudioRepeter(0);
+            sound.stopAudioRepeter(8);
+            }
+        }
+        if (gameMode == STATE_GAME::PLAYING_EXPLORER)
+        {
+            if (!sound.isAudioPlaying(0))
+            {
+            sound.playAudioRepeter(0, volume.musica);
+            sound.stopAudioRepeter(1);
             }
         }
     }
@@ -1637,9 +1635,7 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
         return;
     }
 
-    if (this->getGameMode() == STATE_GAME::MENU ||
-        this->getGameMode() == STATE_GAME::MENU_CONFIG ||
-        this->getGameMode() == STATE_GAME::MENU_CREDITS)
+    if (this->getGameMode() == STATE_GAME::MENU)
     {
         if (key == 9)
         {
@@ -1709,8 +1705,6 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
         }
 
     case 'x':
-        if (gameMode == STATE_GAME::COMBAT)
-        {
             if (player.attack())
             {
                 for (auto &object : gameObjects)
@@ -1728,13 +1722,20 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
                             enemy->takeDamage(damage, AttackType::FIRE);
                         }
                     }
+                }
+            }
+        if (currentMap == MapType::BOSS)
+        {
+            if (player.attack())
+            {
+                for (auto &object : gameObjects)
+                {
                     Boss *boss = dynamic_cast<Boss *>(object.get());
                     if (boss && boss->isActive())
                     {
                         float dx = boss->getX() - player.getX();
                         float dz = boss->getZ() - player.getZ();
                         float dist = std::sqrt(dx * dx + dz * dz);
-                        printf("sim\n");
                         if (dist < 3.0f)
                         {
                             isAttacking = true;
@@ -2000,6 +2001,12 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
                 sound.setVolume(12, volume.UI);
                 sound.setVolume(13, volume.UI);
                 sound.setVolume(14, volume.efeitos);
+                sound.setVolume(15, volume.musica);
+                sound.setVolume(16, volume.UI);
+                sound.setVolume(17, volume.efeitos);
+                sound.setVolume(18, volume.efeitos);
+                sound.setVolume(19, volume.musica);
+                sound.setVolume(20, volume.musica);
             }
         }
     }
@@ -2057,25 +2064,12 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
 
     if ((buttonMask & JOYSTICK_QUAD) && !(previousButtonMask & JOYSTICK_QUAD))
     {
-        if (gameMode == STATE_GAME::COMBAT || currentMap == MapType::BOSS)
+        if (currentMap == MapType::BOSS || gameMode == STATE_GAME::COMBAT)
         {
             if (player.attack())
             {
                 for (auto &object : gameObjects)
                 {
-                    Enemy *enemy = dynamic_cast<Enemy *>(object.get());
-                    if (enemy && enemy->isActive())
-                    {
-                        float dx = enemy->getX() - player.getX();
-                        float dz = enemy->getZ() - player.getZ();
-                        float dist = std::sqrt(dx * dx + dz * dz);
-                        if (dist < 4.0f)
-                        {
-                            sound.playAudio(14, volume.efeitos);
-                            float damage = player.getAttackDamage() * 0.5f;
-                            enemy->takeDamage(damage, AttackType::FIRE);
-                        }
-                    }
                     Boss *boss = dynamic_cast<Boss *>(object.get());
                     if (boss && boss->isActive())
                     {
@@ -2086,7 +2080,21 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
                         {
                             isAttacking = true;
                             attackProgress = 0.0f;
-                            boss->takeDamage(player.getAttackDamage() * 0.4f, AttackType::PHYSICAL);
+                            boss->takeDamage(player.getAttackDamage() * 0.4f, AttackType::FIRE);
+                            sound.playAudio(14, volume.efeitos);
+                        }
+                    }
+                    Enemy *enemy = dynamic_cast<Enemy *>(object.get());
+                    if (enemy && enemy->isActive())
+                    {
+                        float dx = enemy->getX() - player.getX();
+                        float dz = enemy->getZ() - player.getZ();
+                        float dist = std::sqrt(dx * dx + dz * dz);
+                        if (dist < 4.0f)
+                        {
+                            isAttacking = true;
+                            attackProgress = 0.0f;
+                            enemy->takeDamage(player.getAttackDamage() * 0.6f, AttackType::FIRE);
                             sound.playAudio(14, volume.efeitos);
                         }
                     }
@@ -2303,8 +2311,8 @@ void Game::handleMouseMotion(int x, int y)
 
     if (mouseRightDown && (gameMode == STATE_GAME::COMBAT || gameMode == STATE_GAME::PLAYING_EXPLORER))
     {
-        player.rotateRight(deltaX * mouseSensitivity);
-        camera.adjustHeight(deltaY);
+        player.rotateRight(-deltaX * mouseSensitivity);
+        camera.adjustHeight(-deltaY);
     }
     if (mouseRightDown && gameMode == STATE_GAME::TOP_VIEW_MAP)
     {
@@ -2332,9 +2340,7 @@ void Game::handlePassiveMouseMotion(int x, int y)
 
     if (gameMode == STATE_GAME::SKILL_TREE)
         updateSkillNodeHover(x, y);
-    if (this->getGameMode() == STATE_GAME::MENU ||
-        this->getGameMode() == STATE_GAME::MENU_CONFIG ||
-        this->getGameMode() == STATE_GAME::MENU_CREDITS)
+    if (this->getGameMode() == STATE_GAME::MENU)
         updateButtonMenuHover(x, y);
 }
 
@@ -2423,8 +2429,6 @@ void Game::handleButtonMenuClick(int x, int y)
         if (dentroX && dentroY)
         {
             sound.playAudio(5, volume.UI);
-            printf("[INFO] Clicou no botão: %s -> mudando gameMode para %d\n",
-                   botao.texto.c_str(), static_cast<int>(botao.destino));
             button_action = botao.destino;
             float volumeChange = 0.05f;
             bool volumeChanged = false;
@@ -2502,6 +2506,12 @@ void Game::handleButtonMenuClick(int x, int y)
                 sound.setVolume(12, volume.UI);
                 sound.setVolume(13, volume.UI);
                 sound.setVolume(14, volume.efeitos);
+                sound.setVolume(15, volume.musica);
+                sound.setVolume(16, volume.UI);
+                sound.setVolume(17, volume.efeitos);
+                sound.setVolume(18, volume.efeitos);
+                sound.setVolume(19, volume.musica);
+                sound.setVolume(20, volume.musica);
             }
         }
     }

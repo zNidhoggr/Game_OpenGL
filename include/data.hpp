@@ -117,8 +117,6 @@ enum STATE_GAME
     SKILL_TREE,
     GAME_OVER,
     MENU,
-    MENU_CONFIG,
-    MENU_CREDITS,
     TOP_VIEW_MAP,
     STATE_EXIT,
 };
