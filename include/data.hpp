@@ -21,9 +21,7 @@
 #define JOYSTICK_ICON_BUTTON 4096
 #define JOYSTICK_TOUCH 8192
 
-// Enumeração para tipos de objetos
-enum ObjectType
-{
+enum ObjectType{
     TREE,
     ROCK,
     BOSS,
@@ -44,25 +42,22 @@ enum ObjectType
 
 };
 
-enum class ModelType
-{
-    GLD,   // Para arquivos GLD
-    OBJ,   // Para arquivos OBJ
-    GLTF,  // Para arquivos GLTF
-    GLB,   // Para arquivos GLB
-    CUSTOM // Para tipos personalizados que você pode carregar sem biblioteca externa
+enum class ModelType{
+    GLD,   
+    OBJ, 
+    GLTF, 
+    GLB,  
+    CUSTOM 
 };
 
-enum SkillType
-{
+enum SkillType{
     ATTACK,
     DEFENSE,
     MAGIC,
     SPEED,
 };
 
-enum class AttackType
-{
+enum class AttackType{
     PHYSICAL,
     FIRE,
     ICE,
@@ -70,14 +65,12 @@ enum class AttackType
     MAGIC
 };
 
-struct Attack
-{
+struct Attack{
     AttackType type;
     float power;
 };
 
-enum class MapType
-{
+enum class MapType{
     MAIN,
     DUNGEON_ONE_LEVEL,
     DUNGEON_TWO_LEVEL,
@@ -86,32 +79,29 @@ enum class MapType
     PARASIDE,
     HOUSE
 };
-struct Color
-{
+
+struct Color{
     float r = 0.5f, g = 0.5f, b = 0.5f;
 };
-struct GrassPatch
-{
-    float x, z;   // centro
-    float radius; // raio
+
+struct GrassPatch{
+    float x, z;   
+    float radius; 
 };
 
-struct TrailPoint
-{
+struct TrailPoint{
     float x, y, z;
 };
 
-struct SkillTooltip
-{
+struct SkillTooltip{
     bool visible;
     int skillIndex;
-    float x, y; // Posição na tela
+    float x, y; 
     float width, height;
     bool showConfirmation;
 };
 
-enum STATE_GAME
-{
+enum STATE_GAME{
     PLAYING_EXPLORER,
     COMBAT,
     SKILL_TREE,
@@ -121,40 +111,32 @@ enum STATE_GAME
     STATE_EXIT,
 };
 
-struct Material
-{
-    Color ambient;   // Cor ambiente
-    Color diffuse;   // Cor difusa
-    Color specular;  // Cor especular
-    float shininess; // Brilho
+struct Material{
+    Color ambient;   
+    Color diffuse;  
+    Color specular;  
+    float shininess; 
 };
 
-struct SkillNode
-{
-    float x, y;     // Posição na tela
-    float radius;   // Raio do nó
-    int skillIndex; // Índice da habilidade
-    bool hovering;  // Se o mouse está sobre o nó
+struct SkillNode{
+    float x, y;   
+    float radius;   
+    int skillIndex; 
+    bool hovering;  
 };
-struct Translation
-{
+
+struct Translation{
     float x = 0.0f, y = 0.0f, z = 0.0f;
 };
 
-struct Rotation
-{
+struct Rotation{
     float x = 0.0f, y = 0.0f, z = 1.0f, angulo = 0.0f;
 };
 
-struct Scale
-{
+struct Scale{
     float x = 1.0f, y = 1.0f, z = 1.0f;
 };
 
-
-
-
-// Button action enum
 enum class ACTION_BUTTON
 {
     EXIT,
@@ -177,10 +159,7 @@ enum class ACTION_BUTTON
     VOLUME_UI_INCREASE
 };
 
-// Simple discriminated union for actions
-// Button structure
-struct Botao
-{
+struct Botao{
     std::string texto;
     float x, y, width, height;
     float r, g, b;
@@ -188,45 +167,37 @@ struct Botao
     ACTION_BUTTON destino;
 };
 
-struct Volume
-{
+struct Volume{
     float ambient = 0.5f;
     float musica = 0.5f;
     float efeitos = 0.5f;
     float UI = 0.5f;
 };
 
-/**
- * @struct BMPHeader
- * @brief Estrutura para armazenar o cabeçalho de arquivos BMP.
- */
 #pragma pack(push, 1)
 typedef struct
 {
-    unsigned char bfType[2];    /**< @var Tipo do arquivo ("BM" para Bitmap). */
-    unsigned int bfSize;        /**< @var Tamanho total do arquivo em bytes. */
-    unsigned short bfReserved1; /**< @var Reservado (deve ser 0). */
-    unsigned short bfReserved2; /**< @var Reservado (deve ser 0). */
-    unsigned int bfOffBits;     /**< @var Offset onde os dados de imagem começam. */
+    unsigned char bfType[2];  
+    unsigned int bfSize;       
+    unsigned short bfReserved1; 
+    unsigned short bfReserved2; 
+    unsigned int bfOffBits; 
 } BMPHeader;
 
-/**
- * @struct BMPInfoHeader
- * @brief Estrutura para armazenar informações sobre a imagem BMP.
- */
 typedef struct
 {
-    unsigned int biSize;         /**< @var Tamanho da estrutura. */
-    int biWidth;                 /**< @var Largura da imagem em pixels. */
-    int biHeight;                /**< @var Altura da imagem em pixels. */
-    unsigned short biPlanes;     /**< @var Número de planos de cor (deve ser 1). */
-    unsigned short biBitCount;   /**< @var Número de bits por pixel. */
-    unsigned int biCompression;  /**< @var Tipo de compressão. */
-    unsigned int biSizeImage;    /**< @var Tamanho da imagem em bytes. */
-    int biXPelsPerMeter;         /**< @var Resolução horizontal (pixels por metro). */
-    int biYPelsPerMeter;         /**< @var Resolução vertical (pixels por metro). */
-    unsigned int biClrUsed;      /**< @var Número de cores na paleta. */
-    unsigned int biClrImportant; /**< @var Número de cores importantes. */
+    unsigned int biSize;        
+    int biWidth;               
+    int biHeight;                
+    unsigned short biPlanes;     
+    unsigned short biBitCount;   
+    unsigned int biCompression;  
+    unsigned int biSizeImage;   
+    int biXPelsPerMeter;     
+    int biYPelsPerMeter;       
+    unsigned int biClrUsed;      
+    unsigned int biClrImportant; 
 } BMPInfoHeader;
 #pragma pack(pop)
+
 #endif

@@ -1,6 +1,12 @@
 #include "game.hpp"
 
 const float Game::WORLD_SIZE = 25.0f;
+extern unsigned int texturaGrama;
+extern unsigned int texturaParaside;
+extern unsigned int texturaBoss;
+extern unsigned int texturaDungeon3;
+extern unsigned int texturaDungeon2;
+extern unsigned int texturaDungeon1;
 
 Game::Game() : player(0.0f, 0.5f, 0.0f),
                cameraDistance(5.0f),
@@ -20,12 +26,10 @@ Game::Game() : player(0.0f, 0.5f, 0.0f),
                mouseSensitivity(0.2f),
                topDownView(false)
 {
-    // Inicializar cores do céu
     skyColor[0] = 0.4f;
     skyColor[1] = 0.6f;
     skyColor[2] = 0.9f;
 
-    // Inicializar tooltip
     skillTooltip.visible = false;
     skillTooltip.showConfirmation = false;
     skillTooltip.width = 250.0f;
@@ -36,26 +40,23 @@ Game::Game() : player(0.0f, 0.5f, 0.0f),
                      {getPlayer().getX(), getPlayer().getY(), getPlayer().getZ() - 0.4f},
                      {270.0f, 1.0f, 0.0f, 0.0f},
                      {0.03f, 0.03f, 0.03f},
-                     {0.1f, 0.4f, 0.9f},      // Cor do modelo
-                     {0.2f, 0.2f, 0.2f},      // Cor ambiente
-                     {0.0f, 0.2f, 1.0f},      // Cor difusa
-                     {0.001f, 0.001f, 0.01f}, // Cor especular
-                     1.0f, ModelType::OBJ);   // Brilho
+                     {0.1f, 0.4f, 0.9f},
+                     {0.2f, 0.2f, 0.2f},
+                     {0.0f, 0.2f, 1.0f},
+                     {0.001f, 0.001f, 0.01f},
+                     1.0f, ModelType::OBJ);
     loader.loadModel("./src/objs/cat_meme.obj", "./src/objs/maxwell_the_cat_dingus.mtl",
                      {getPlayer().getX() + 4.0f, getPlayer().getY(), getPlayer().getZ() + 4.0f},
                      {0.0f, 0.0f, 0.0f, 0.0f},
                      {0.05f, 0.05f, 0.05f},
-                     {-1.0f, -1.0f, -1.0f}, // Cor do modelo
-                     {-1.0f, -1.0f, -1.0f}, // Cor ambiente
-                     {-1.0f, -1.0f, -1.0f}, // Cor difusa
-                     {-1.0f, -1.0f, -1.0f}, // Cor especular
-                     0.0f, ModelType::OBJ); // Brilho
+                     {-1.0f, -1.0f, -1.0f},
+                     {-1.0f, -1.0f, -1.0f},
+                     {-1.0f, -1.0f, -1.0f},
+                     {-1.0f, -1.0f, -1.0f},
+                     0.0f, ModelType::OBJ);
 }
 
-float Game::lerp(float a, float b, float t)
-{
-    return a + (b - a) * t;
-}
+float Game::lerp(float a, float b, float t) { return a + (b - a) * t; }
 
 bool Game::isUnderWater(float x, float z)
 {
@@ -64,18 +65,21 @@ bool Game::isUnderWater(float x, float z)
         {-7.0f, -3.0f},
         {8.0f, -6.0f},
         {-4.0f, 7.0f}};
+
     float radius = 3.5f;
 
     for (const auto &center : lakeCenters)
     {
+
         float cx = center.first;
         float cz = center.second;
-
         float dist = std::sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz));
+
         if (dist < radius)
         {
-            // Calcular altura da borda
+
             float maxEdgeHeight = -1000.0f;
+
             for (int angle = 0; angle < 360; angle += 10)
             {
                 float rad = angle * M_PI / 180.0f;
@@ -88,6 +92,7 @@ bool Game::isUnderWater(float x, float z)
 
             float waterHeight = maxEdgeHeight - 0.02f;
             float terrainY = getTerrainHeight(x, z);
+
             if (terrainY < waterHeight)
                 return true;
         }
@@ -107,13 +112,12 @@ bool Game::isInTrail(float x, float z)
             return true;
     }
 
-    // Verificar clareiras
     for (const auto &c : trailClearings)
     {
         float dx = x - c.x;
         float dz = z - c.z;
         float distSq = dx * dx + dz * dz;
-        if (distSq < 4.0f * 4.0f) // raio das clareiras
+        if (distSq < 4.0f * 4.0f)
             return true;
     }
 
@@ -124,16 +128,18 @@ bool Game::hasGrass(float x, float z)
 {
     if (isInTrail(x, z))
     {
-        return false; // Sem grama na trilha
+        return false;
     }
 
     for (const GrassPatch &patch : grassPatches)
     {
+
         float dx = x - patch.x;
         float dz = z - patch.z;
+
         if (std::sqrt(dx * dx + dz * dz) < patch.radius)
         {
-            return true; // Dentro de alguma mancha de grama
+            return true;
         }
     }
 
@@ -142,8 +148,8 @@ bool Game::hasGrass(float x, float z)
 
 void Game::generateBranch(TrailPoint origin, float baseDirection, float safeMargin)
 {
-    float direction = baseDirection + ((rand() % 2 == 0) ? M_PI / 3 : -M_PI / 3); // 60° esquerda ou direita
-    int branchLength = 8 + rand() % 5;                                            // comprimento variável
+    float direction = baseDirection + ((rand() % 2 == 0) ? M_PI / 3 : -M_PI / 3);
+    int branchLength = 8 + rand() % 5;
 
     TrailPoint current = origin;
 
@@ -159,10 +165,11 @@ void Game::generateBranch(TrailPoint origin, float baseDirection, float safeMarg
             break;
 
         trailCurvePoints.push_back(next);
+
         if (i % 4 == 0)
             trailClearings.push_back(next);
 
-        direction += sin(i * 0.3f) * (M_PI / 18); // zigue-zague leve
+        direction += sin(i * 0.3f) * (M_PI / 18);
         current = next;
     }
 }
@@ -174,7 +181,7 @@ void Game::generateNaturalTrail(float worldSize)
 
     float minX = -worldSize;
     float maxX = worldSize;
-    float startZ = (rand() % 2000 / 100.0f - 1.0f) * worldSize; // aleatório entre -worldSize e worldSize
+    float startZ = (rand() % 2000 / 100.0f - 1.0f) * worldSize;
     float endZ = (rand() % 2000 / 100.0f - 1.0f) * worldSize;
 
     float step = 1.0f;
@@ -183,6 +190,7 @@ void Game::generateNaturalTrail(float worldSize)
 
     for (float x = minX; x <= maxX; x += step)
     {
+
         float t = (x - minX) / (maxX - minX);
         float z = (1.0f - t) * startZ + t * endZ + std::sin(offset + t * 10.0f) * curveAmplitude;
 
@@ -207,17 +215,14 @@ void Game::loadMainMap()
     currentMap = MapType::MAIN;
     gameObjects.clear();
 
-    // Céu azul
     skyColor[0] = 0.4f;
     skyColor[1] = 0.7f;
     skyColor[2] = 1.0f;
 
-    // Jogador no centro
     float x = 0.0f, z = 0.0f;
     float y = getTerrainHeight(x, z) + 0.3f;
     player.setPosition(x, y, z);
 
-    // Exemplo de árvores, inimigos, etc.
     for (int i = 0; i < 10; i++)
     {
         float ox = rand() % 20 - 10;
@@ -225,36 +230,13 @@ void Game::loadMainMap()
         float oy = getTerrainHeight(ox, oz);
         gameObjects.push_back(std::make_unique<StaticObject>(ox, oy, oz, 0.4f, ObjectType::TREE, 0.3f, 0.7f, 0.2f));
     }
+
     float worldX = (DUNGEON_WIDTH / 2) * 5.0f;
     float worldZ = (DUNGEON_HEIGHT / 2) * 5.0f;
-    // float y = getTerrainHeight(worldX, worldZ);
 
-    // Adiciona o portal para a DUNGEON_ONE_LEVEL
     float px = 8.0f, pz = -5.0f;
     float py = getTerrainHeight(px, pz);
     gameObjects.push_back(std::make_unique<Portal>(x, y + 0.2f, z, 0.4f, 0.0f, 0.0f, MapType::DUNGEON_ONE_LEVEL));
-}
-void Game::loadHouseInterior()
-{
-    currentMap = MapType::HOUSE; // Define o tipo de mapa como o interior da casa
-    gameObjects.clear();         // Limpa objetos anteriores
-
-    // Definindo a altura e a posição da casa
-    float houseX = 0.0f, houseZ = 0.0f;
-    float houseY = getTerrainHeight(houseX, houseZ) + 0.3f; // Ajuste a altura conforme necessário
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX, houseY, houseZ, 0.4f, ObjectType::WALL, 0.7f, 0.7f, 0.7f));
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX + 5.0f, houseY, houseZ, 0.4f, ObjectType::WALL, 0.7f, 0.7f, 0.7f));
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX, houseY, houseZ - 5.0f, 0.4f, ObjectType::WALL, 0.7f, 0.7f, 0.7f));
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX + 5.0f, houseY, houseZ - 5.0f, 0.4f, ObjectType::WALL, 0.7f, 0.7f, 0.7f));
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX + 2.5f, houseY + 3.0f, houseZ - 2.5f, 0.4f, ObjectType::ROOF, 0.5f, 0.5f, 0.5f));
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX + 2.0f, houseY + 0.2f, houseZ - 2.5f, 0.4f, ObjectType::TABLE, 0.4f, 0.2f, 0.1f));
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX + 1.5f, houseY + 0.2f, houseZ - 3.0f, 0.4f, ObjectType::CHAIR, 0.6f, 0.3f, 0.1f));
-
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX + 1.0f, houseY + 1.0f, houseZ - 5.1f, 0.4f, ObjectType::WINDOW, 0.9f, 0.9f, 0.9f));
-
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX + 2.0f, houseY + 0.2f, houseZ - 5.0f, 0.4f, ObjectType::DOOR, 0.7f, 0.3f, 0.1f));
-
-    gameObjects.push_back(std::make_unique<StaticObject>(houseX + 3.0f, houseY + 2.0f, houseZ - 2.5f, 0.4f, ObjectType::LAMP, 1.0f, 1.0f, 0.5f));
 }
 
 void Game::loadDungeonMap()
@@ -271,9 +253,11 @@ void Game::loadDungeonMap()
 
     int x = 5, z = 5;
     dungeonGrid[x][z] = true;
+
     for (int i = 0; i < 15; i++)
     {
         int dir = rand() % 4;
+
         switch (dir)
         {
         case 0:
@@ -293,82 +277,68 @@ void Game::loadDungeonMap()
                 z++;
             break;
         }
+
         dungeonGrid[x][z] = true;
     }
 
-    // Cria as salas no mapa
     for (int i = 0; i < DUNGEON_WIDTH; i++)
     {
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
         {
             if (dungeonGrid[i][j])
             {
+
                 float worldX = (i - DUNGEON_WIDTH / 2) * 5.0f;
                 float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
                 float y = getTerrainHeight(worldX, worldZ);
+                float tileSize = 20.0f;
 
-                // Coloca muralhas em volta de salas que não têm vizinhos
-                float tileSize = 20.0f; // mesmo valor usado para espaçar salas
-
-                // Muralha contínua ao redor da DUNGEON_ONE_LEVEL, exceto onde há o portal
                 for (int i = 0; i < DUNGEON_WIDTH; ++i)
                 {
                     for (int j = 0; j < DUNGEON_HEIGHT; ++j)
                     {
+
                         bool isEdge = (i == 0 || j == 0 || i == DUNGEON_WIDTH - 1 || j == DUNGEON_HEIGHT - 1);
+
                         if (isEdge)
                         {
                             float wx = (i - DUNGEON_WIDTH / 2) * 10.0f;
                             float wz = (j - DUNGEON_HEIGHT / 2) * 10.0f;
                             float wy = getTerrainHeight(wx, wz);
 
-                            // Exceção: deixar espaço para o portal
                             bool isPortalGap = (i == DUNGEON_WIDTH / 2 && j == DUNGEON_HEIGHT - 1);
+
                             if (isPortalGap)
                                 continue;
 
-                            // Define escalas diferentes para blocos horizontais e verticais
                             float scaleX = (j == 0 || j == DUNGEON_HEIGHT - 1) ? 2.5f : 0.5f;
                             float scaleZ = (i == 0 || i == DUNGEON_WIDTH - 1) ? 2.5f : 0.5f;
 
-                            gameObjects.push_back(std::make_unique<StaticObject>(
-                                wx + 10.0f, wy + 10.0f, wz, 2.5f, WALL, scaleX, 1.0f, scaleZ));
+                            gameObjects.push_back(std::make_unique<StaticObject>(wx + 10.0f, wy + 10.0f, wz, 2.5f, WALL, scaleX, 1.0f, scaleZ));
                         }
                     }
                 }
 
-                // Obstáculos ou paredes podem ser adicionados aqui
                 if (rand() % 3 == 0)
                 {
-                    gameObjects.push_back(std::make_unique<StaticObject>(
-                        worldX + 1.0f, y, worldZ + 1.0f, 0.6f, ObjectType::WALL,
-                        0.3f, 0.3f, 0.3f));
+                    gameObjects.push_back(std::make_unique<StaticObject>(worldX + 1.0f, y, worldZ + 1.0f, 0.6f, ObjectType::WALL, 0.3f, 0.3f, 0.3f));
                 }
-
                 if (rand() % 4 == 0)
                 {
-                    gameObjects.push_back(std::make_unique<StaticObject>(
-                        worldX + 0.5f, y + 0.3f, worldZ + 0.5f, 0.3f, ITEM, 0.9f, 0.8f, 0.1f));
+                    gameObjects.push_back(std::make_unique<StaticObject>(worldX + 0.5f, y + 0.3f, worldZ + 0.5f, 0.3f, ITEM, 0.9f, 0.8f, 0.1f));
                 }
-
-                // Inimigos
                 if (rand() % 2 == 0)
                 {
-                    gameObjects.push_back(std::make_unique<Enemy>(
-                        worldX, y + 0.3f, worldZ, 0.5f, 2));
+                    gameObjects.push_back(std::make_unique<Enemy>(worldX, y + 0.3f, worldZ, 0.5f, 2));
                     float worldX = (DUNGEON_WIDTH / 2) * 5.0f;
                 }
             }
         }
     }
 
-    // Portal de volta ao mapa principal
     float exitX = 0.0f, exitZ = -20.0f;
     float exitY = getTerrainHeight(exitX, exitZ);
-    gameObjects.push_back(std::make_unique<Portal>(
-        exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::DUNGEON_TWO_LEVEL));
-
-    // Jogador no centro da DUNGEON_ONE_LEVEL
+    gameObjects.push_back(std::make_unique<Portal>(exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::DUNGEON_TWO_LEVEL));
     float startX = 0.0f, startZ = 0.0f;
     float startY = getTerrainHeight(startX, startZ) + 0.3f;
     player.setPosition(startX, startY, startZ);
@@ -382,17 +352,17 @@ void Game::loadDungeonMap_Level2()
     skyColor[1] = 0.05f;
     skyColor[2] = 0.1f;
 
-    // Limpa grid
     for (int i = 0; i < DUNGEON_WIDTH; i++)
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
             dungeonGrid[i][j] = false;
 
-    // Gera um "caminho" mais complexo e ramificado
     int x = 5, z = 5;
     dungeonGrid[x][z] = true;
     for (int i = 0; i < 30; i++)
     {
+
         int dir = rand() % 4;
+
         switch (dir)
         {
         case 0:
@@ -412,9 +382,9 @@ void Game::loadDungeonMap_Level2()
                 z++;
             break;
         }
+
         dungeonGrid[x][z] = true;
 
-        // Adiciona ramificações aleatórias
         if (rand() % 3 == 0)
         {
             int branchX = x + (rand() % 3 - 1);
@@ -424,7 +394,6 @@ void Game::loadDungeonMap_Level2()
         }
     }
 
-    // Gerar salas e obstáculos
     for (int i = 0; i < DUNGEON_WIDTH; i++)
     {
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
@@ -435,12 +404,11 @@ void Game::loadDungeonMap_Level2()
                 float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
                 float y = getTerrainHeight(worldX, worldZ);
 
-                if (rand() % 4 == 0) // Obstáculos
+                if (rand() % 4 == 0)
                 {
                     gameObjects.push_back(std::make_unique<StaticObject>(worldX, y, worldZ, 0.6f, ObjectType::WALL, 0.3f, 0.3f, 0.3f));
                 }
-
-                if (rand() % 1 == 0) // Inimigos
+                if (rand() % 1 == 0)
                 {
                     gameObjects.push_back(std::make_unique<Enemy>(worldX, y + 0.3f, worldZ, 0.5f, 3));
                 }
@@ -448,12 +416,9 @@ void Game::loadDungeonMap_Level2()
         }
     }
 
-    // Portal de saída
     float exitX = 0.0f, exitZ = -20.0f;
     float exitY = getTerrainHeight(exitX, exitZ);
     gameObjects.push_back(std::make_unique<Portal>(exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::DUNGEON_THREE_LEVEL));
-
-    // Jogador no centro
     float startX = 0.0f, startZ = 0.0f;
     float startY = getTerrainHeight(startX, startZ) + 0.3f;
     player.setPosition(startX, startY, startZ);
@@ -462,19 +427,19 @@ void Game::loadDungeonMap_Level2()
 void Game::loadDungeonMap_Level3()
 {
     currentMap = MapType::DUNGEON_THREE_LEVEL;
+
     gameObjects.clear();
     skyColor[0] = 0.05f;
     skyColor[1] = 0.05f;
     skyColor[2] = 0.1f;
 
-    // Limpa grid
     for (int i = 0; i < DUNGEON_WIDTH; i++)
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
             dungeonGrid[i][j] = false;
 
-    // Gera um "caminho" mais complexo entre salas
     int x = 5, z = 5;
     dungeonGrid[x][z] = true;
+
     for (int i = 0; i < 20; i++)
     {
         int dir = rand() % 4;
@@ -500,7 +465,6 @@ void Game::loadDungeonMap_Level3()
         dungeonGrid[x][z] = true;
     }
 
-    // Gerar inimigos e obstáculos
     for (int i = 0; i < DUNGEON_WIDTH; i++)
     {
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
@@ -511,12 +475,12 @@ void Game::loadDungeonMap_Level3()
                 float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
                 float y = getTerrainHeight(worldX, worldZ);
 
-                if (rand() % 2 == 0) // Mais inimigos
+                if (rand() % 2 == 0)
                 {
                     gameObjects.push_back(std::make_unique<Enemy>(worldX, y + 0.3f, worldZ, 0.5f, 3));
                 }
 
-                if (rand() % 2 == 0) // Obstáculos
+                if (rand() % 2 == 0) 
                 {
                     gameObjects.push_back(std::make_unique<StaticObject>(worldX + 1.0f, y, worldZ + 1.0f, 0.6f, ObjectType::WALL, 0.3f, 0.3f, 0.3f));
                 }
@@ -524,12 +488,10 @@ void Game::loadDungeonMap_Level3()
         }
     }
 
-    // Portal de saída
     float exitX = 0.0f, exitZ = -20.0f;
     float exitY = getTerrainHeight(exitX, exitZ);
     gameObjects.push_back(std::make_unique<Portal>(exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::BOSS));
 
-    // Jogador no centro
     float startX = 0.0f, startZ = 0.0f;
     float startY = getTerrainHeight(startX, startZ) + 0.3f;
     player.setPosition(startX, startY, startZ);
@@ -543,23 +505,17 @@ void Game::loadDungeonMap_Boss()
     skyColor[1] = 0.02f;
     skyColor[2] = 0.02f;
 
-    // Limpa grid
     for (int i = 0; i < DUNGEON_WIDTH; i++)
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
             dungeonGrid[i][j] = false;
 
-    // Arena central
     for (int i = 3; i < DUNGEON_WIDTH - 3; i++)
         for (int j = 3; j < DUNGEON_HEIGHT - 3; j++)
             dungeonGrid[i][j] = true;
 
-    // Paredes ao redor
-    for (int i = 0; i < DUNGEON_WIDTH; i++)
-    {
-        for (int j = 0; j < DUNGEON_HEIGHT; j++)
-        {
-            if (!dungeonGrid[i][j])
-            {
+    for (int i = 0; i < DUNGEON_WIDTH; i++){
+        for (int j = 0; j < DUNGEON_HEIGHT; j++){
+            if (!dungeonGrid[i][j]) {
                 float worldX = (i - DUNGEON_WIDTH / 2) * 5.0f;
                 float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
                 float y = getTerrainHeight(worldX, worldZ);
@@ -586,21 +542,17 @@ void Game::loadParasideMap()
     currentMap = MapType::PARASIDE;
     gameObjects.clear();
 
-    // Céu azul claro para um efeito paradisíaco
     skyColor[0] = 0.7f;
     skyColor[1] = 0.9f;
     skyColor[2] = 1.0f;
 
-    // Limpa grid
     for (int i = 0; i < DUNGEON_WIDTH; i++)
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
             dungeonGrid[i][j] = false;
 
-    // Área central mais aberta para o checkpoint
     float centerX = 0.0f;
     float centerZ = 0.0f;
 
-    // Área gramada com árvores e flores
     for (int i = 2; i < DUNGEON_WIDTH - 2; i++)
     {
         for (int j = 2; j < DUNGEON_HEIGHT - 2; j++)
@@ -609,20 +561,16 @@ void Game::loadParasideMap()
             float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
             float distToCenter = sqrt(pow(worldX - centerX, 2) + pow(worldZ - centerZ, 2));
 
-            // Mantém o centro mais limpo para o checkpoint
             if (distToCenter < 5.0f)
                 continue;
 
             float y = getTerrainHeight(worldX, worldZ);
 
-            // Adiciona árvores com densidade menor (mais espaçadas)
             if (rand() % 8 == 0)
             {
                 gameObjects.push_back(std::make_unique<StaticObject>(
                     worldX, y, worldZ, 1.0f, ObjectType::TREE, 0.8f, 3.5f, 0.8f));
             }
-
-            // Adiciona pedras pequenas espalhadas
             else if (rand() % 15 == 0)
             {
                 gameObjects.push_back(std::make_unique<StaticObject>(
@@ -631,12 +579,10 @@ void Game::loadParasideMap()
         }
     }
 
-    // Adiciona o checkpoint com fogueira no centro
     float checkpointX = centerX;
     float checkpointZ = centerZ;
     float checkpointY = getTerrainHeight(checkpointX, checkpointZ);
 
-    // Adiciona pedras em círculo para a fogueira
     float stoneDiameter = 0.5f;
     int numStones = 8;
     float radius = 1.5f;
@@ -652,11 +598,9 @@ void Game::loadParasideMap()
             stoneX, stoneY, stoneZ, 0.3f, ObjectType::ROCK, stoneDiameter, stoneDiameter * 0.7f, stoneDiameter));
     }
 
-    // Adiciona a fogueira no centro
     gameObjects.push_back(std::make_unique<StaticObject>(
         checkpointX, checkpointY, checkpointZ, 0.8f, ObjectType::BONFIRE, 1.0f, 1.0f, 1.0f));
 
-    // Adiciona alguns troncos ao redor da fogueira
     for (int i = 0; i < 3; i++)
     {
         float angle = i * (2 * M_PI / 3);
@@ -668,13 +612,12 @@ void Game::loadParasideMap()
             logX, logY, logZ, 0.5f, ObjectType::ROCK, 1.5f, 0.5f, 0.5f));
     }
 
-    // Portal para voltar ao mapa principal
     float exitX = 0.0f, exitZ = -20.0f;
     float exitY = getTerrainHeight(exitX, exitZ);
     gameObjects.push_back(std::make_unique<Portal>(
         exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::MAIN));
 
-    // Adiciona algumas pedras destacando o caminho para o portal
+
     for (int i = 1; i <= 5; i++)
     {
         float pathX = exitX + 2.0f;
@@ -689,7 +632,6 @@ void Game::loadParasideMap()
             pathX, pathY, pathZ, 0.3f, ObjectType::ROCK, 0.6f, 0.4f, 0.6f));
     }
 
-    // Posicionamento inicial do jogador próximo à fogueira
     float startX = checkpointX + 1.0f;
     float startZ = checkpointZ;
     float startY = getTerrainHeight(startX, startZ) + 0.3f;
@@ -698,7 +640,6 @@ void Game::loadParasideMap()
 
 void Game::initObjects()
 {
-    // Criar árvores aleatórias
     for (int i = 0; i < 20; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
@@ -707,12 +648,11 @@ void Game::initObjects()
         float y = getTerrainHeight(x, z);
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue; 
         gameObjects.push_back(std::make_unique<StaticObject>(
             x, y, z, size, TREE, 0.3f, 0.5f, 0.1f));
     }
 
-    // Criar pedras
     for (int i = 0; i < 10; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
@@ -721,12 +661,12 @@ void Game::initObjects()
         float y = getTerrainHeight(x, z);
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue;
         gameObjects.push_back(std::make_unique<StaticObject>(
             x, y, z, size, ROCK, 0.5f, 0.5f, 0.5f));
     }
 
-    // Criar casas
+
     for (int i = 0; i < 5; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
@@ -735,27 +675,25 @@ void Game::initObjects()
         float y = getTerrainHeight(x, z);
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue; 
         gameObjects.push_back(std::make_unique<StaticObject>(
             x, y, z, size, HOUSE, 0.7f, 0.4f, 0.1f));
     }
 
-    // Criar inimigos
     for (int i = 0; i < 10; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
         float z = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
         float size = 0.4f + ((float)rand() / RAND_MAX) * 0.3f;
-        int level = 1 + rand() % 3; // Inimigos de nível 1 a 3
+        int level = 1 + rand() % 3;
         float y = getTerrainHeight(x, z);
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue; 
         gameObjects.push_back(std::make_unique<Enemy>(
             x, y, z, size, level));
     }
 
-    // Criar itens
     for (int i = 0; i < 3; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
@@ -764,7 +702,7 @@ void Game::initObjects()
         float y = getTerrainHeight(x, z) + 0.3f;
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue; 
         gameObjects.push_back(std::make_unique<StaticObject>(
             x, y, z, size, ITEM, 0.9f, 0.8f, 0.1f));
     }
@@ -778,32 +716,31 @@ void Game::initObjects()
         GrassPatch patch;
         patch.x = (rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
         patch.z = (rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
-        patch.radius = 2.0f + (rand() % 300) / 100.0f; // raio entre 2 e 5
+        patch.radius = 2.0f + (rand() % 300) / 100.0f;
         grassPatches.push_back(patch);
     }
 
-    // Criar grama com densidade controlada
-    for (float x = -WORLD_SIZE; x <= WORLD_SIZE; x += 0.5f)
+    for (float x = -WORLD_SIZE; x <= WORLD_SIZE * 10; x += 0.5f)
     {
-        for (float z = -WORLD_SIZE; z <= WORLD_SIZE; z += 0.5f)
+        for (float z = -WORLD_SIZE; z <= WORLD_SIZE * 10; z += 0.5f)
         {
             if (hasGrass(x, z))
             {
+
                 float offsetX = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
                 float offsetZ = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
                 float y = getTerrainHeight(x + offsetX, z + offsetZ) + 0.01f;
 
                 if (isUnderWater(x, z))
-                    continue; // ignora objetos submersos
+                    continue;
+
                 gameObjects.push_back(std::make_unique<GrassBlade>(x + offsetX, y, z + offsetZ));
                 float worldX = (DUNGEON_WIDTH / 2) * 5.0f;
                 float worldZ = (DUNGEON_HEIGHT / 2) * 5.0f;
-                // float y = getTerrainHeight(worldX, worldZ);
             }
         }
     }
 
-    // Portal para a DUNGEON_ONE_LEVEL
     addPortalNearEdge(WORLD_SIZE, 1.5f, -15.0f, -15.0f, MapType::MAIN); // DUNGEON_ONE_LEVEL 1
     addPortalNearEdge(WORLD_SIZE, 1.5f, 15.0f, -15.0f, MapType::MAIN);  // DUNGEON_ONE_LEVEL 2
     addPortalNearEdge(WORLD_SIZE, 1.5f, -15.0f, 15.0f, MapType::MAIN);  // DUNGEON_ONE_LEVEL 3
@@ -814,24 +751,23 @@ void Game::addPortalNearEdge(float worldSize, float margin, float destX, float d
 {
     float edge = worldSize - margin;
     float x = 0.0f, z = 0.0f;
-
-    int side = rand() % 4; // 0: cima, 1: baixo, 2: esquerda, 3: direita
+    int side = rand() % 4;
 
     switch (side)
     {
-    case 0: // topo
+    case 0:
         x = (rand() % (int)(worldSize * 2)) - worldSize;
         z = edge;
         break;
-    case 1: // baixo
+    case 1:
         x = (rand() % (int)(worldSize * 2)) - worldSize;
         z = -edge;
         break;
-    case 2: // esquerda
+    case 2:
         x = -edge;
         z = (rand() % (int)(worldSize * 2)) - worldSize;
         break;
-    case 3: // direita
+    case 3:
         x = edge;
         z = (rand() % (int)(worldSize * 2)) - worldSize;
         break;
@@ -893,17 +829,17 @@ void Game::update()
         {
             if (!sound.isAudioPlaying(1))
             {
-            sound.playAudioRepeter(1, volume.musica);
-            sound.stopAudioRepeter(0);
-            sound.stopAudioRepeter(8);
+                sound.playAudioRepeter(1, volume.musica);
+                sound.stopAudioRepeter(0);
+                sound.stopAudioRepeter(8);
             }
         }
         if (gameMode == STATE_GAME::PLAYING_EXPLORER)
         {
             if (!sound.isAudioPlaying(0))
             {
-            sound.playAudioRepeter(0, volume.musica);
-            sound.stopAudioRepeter(1);
+                sound.playAudioRepeter(0, volume.musica);
+                sound.stopAudioRepeter(1);
             }
         }
     }
@@ -949,24 +885,18 @@ void Game::update()
         }
     }
 
-    // Lógica principal do jogo (combate e exploração)
     if (gameMode == STATE_GAME::COMBAT || gameMode == STATE_GAME::PLAYING_EXPLORER)
     {
-        // Atualiza movimentação do jogador
         this->updateMoviment();
         player.update(deltaTime);
-
         bool isAnyEnemyActive = false;
         int quant_enemies = 0;
 
-        // Atualiza todos os objetos do jogo e verifica inimigos
         for (auto &object : gameObjects)
         {
+
             object->update(deltaTime);
             const std::string typeName = typeid(*object).name();
-
-            if (typeName == "2Boss")
-                std::cout << "Object Type: " << typeName << std::endl;
 
             Enemy *enemy = dynamic_cast<Enemy *>(object.get());
             if (enemy)
@@ -976,7 +906,6 @@ void Game::update()
                     quant_enemies++;
                     enemy->moveTowardsPlayer(player, deltaTime);
 
-                    // Verifica ataque do inimigo ao jogador
                     if (enemy->attackPlayer(player, deltaTime))
                     {
                         std::cout << "Você foi atacado! Vida restante: " << player.getHealth() << std::endl;
@@ -990,12 +919,12 @@ void Game::update()
                 }
                 else
                 {
-                    // Corrigido: Verifica se o XP ainda não foi dado
                     if (!enemy->isExperienceGiven())
                     {
                         int xp = static_cast<int>(enemy->getExperienceValue());
                         player.addExperience(xp);
-                        enemy->markExperienceAsGiven(); // Marca que o XP já foi concedido
+                        sound.playAudio(21, volume.efeitos);
+                        enemy->markExperienceAsGiven();
                     }
                 }
             }
@@ -1007,27 +936,24 @@ void Game::update()
                     if (boss->isActive())
                     {
                         boss->moveTowardsPlayer(player, deltaTime, loader);
-
-                        // Verifica ataque do inimigo ao jogador
                         if (boss->attackPlayer(player, deltaTime))
                         {
                             std::cout << "Você foi atacado! Vida restante: " << player.getHealth() << std::endl;
                         }
-
                         if (boss->isInCombat())
                         {
                         }
                     }
                     else
                     {
-                        // Corrigido: Verifica se o XP ainda não foi dado
                         if (!boss->isExperienceGiven())
                         {
                             BossDefeat = true;
                             int xp = static_cast<int>(boss->getExperienceValue() * 10.f);
                             player.addExperience(xp);
                             sound.playAudio(18, volume.efeitos);
-                            boss->markExperienceAsGiven(); // Marca que o XP já foi concedido
+                            sound.playAudio(21, volume.efeitos);
+                            boss->markExperienceAsGiven();
                         }
                     }
                 }
@@ -1035,7 +961,6 @@ void Game::update()
         }
         inimigos = quant_enemies;
 
-        // Atualiza o modo de jogo com base nos inimigos ativos
         if (isAnyEnemyActive)
         {
             sound.stopAudioRepeter(0);
@@ -1050,83 +975,61 @@ void Game::update()
                 sound.playAudioRepeter(9, volume.musica);
             }
         }
-        else
-        {
+        else{
             gameMode = STATE_GAME::PLAYING_EXPLORER;
 
-            if (currentMap != MapType::DUNGEON_THREE_LEVEL && currentMap != MapType::BOSS)
-            {
+            if (currentMap != MapType::DUNGEON_THREE_LEVEL && currentMap != MapType::BOSS) {
                 sound.stopAudioRepeter(1);
-            }
-            else
-            {
+            }else{
                 sound.playAudioRepeter(9, volume.musica);
             }
 
-            if (currentMap == MapType::MAIN)
-            {
+            if (currentMap == MapType::MAIN){
                 sound.playAudioRepeter(0, volume.musica);
             }
         }
-        // Verificação de colisões
+
         checkCollisions();
 
-        // Controle do estado de ataque do jogador
-        if ((player.getAttackTimer() / player.getAttackCooldown()) > 0)
-        {
+        if ((player.getAttackTimer() / player.getAttackCooldown()) > 0){
             isAttacking = true;
             attackProgress = 0.0f;
-        }
-        else
-        {
-            isAttacking = false;
+        }else {
+        isAttacking = false;
             attackProgress = 0.0f;
         }
 
-        // Ajuste suave da altura do jogador baseado no terreno
         float targetY = getTerrainHeight(player.getX(), player.getZ()) + 0.3f;
         float currentY = player.getY();
         float smoothY = lerp(currentY, targetY, 0.1f);
         player.setPosition(player.getX(), smoothY, player.getZ());
-
-        // Lógica para portais
         showPortalMessage = false;
 
-        for (auto &obj : gameObjects)
-        {
+        for (auto &obj : gameObjects){
             Portal *portal = dynamic_cast<Portal *>(obj.get());
-            if (portal && portal->playerIsNearby(player))
-            {
-                if (!isAnyEnemyActive && quant_enemies == 0)
-                {
+            if (portal && portal->playerIsNearby(player)){
+                if (!isAnyEnemyActive && quant_enemies == 0){
                     showPortalMessage = true;
 
-                    if (GetAsyncKeyState(VK_RETURN) & 0x8000)
-                    {
+                    if (GetAsyncKeyState(VK_RETURN) & 0x8000){
                         portal->teleport(player, *this);
                         break;
                     }
                 }
-                else
-                {
+                else{
                     showPortalMessage = false;
-                    if (!sound.isAudioPlaying(3))
-                    {
+                    if (!sound.isAudioPlaying(3)){
                         sound.playAudio(3, volume.efeitos);
                     }
                 }
             }
         }
 
-        // Verifica se todos os inimigos foram derrotados
-        if (quant_enemies == 0 && !isAnyEnemyActive && !soundNoEnemie)
-        {
+        if (quant_enemies == 0 && !isAnyEnemyActive && !soundNoEnemie){
             sound.playAudio(13, volume.efeitos);
-            soundNoEnemie = true; // Marca que o som foi tocado
-        }
-        else if (quant_enemies > 0)
-        {
-            soundNoEnemie = false; // Reseta para tocar novamente se novos inimigos aparecerem
+            soundNoEnemie = true; 
+        }else if (quant_enemies > 0){
+            soundNoEnemie = false;
         }
     }
 }
@@ -1177,54 +1080,41 @@ void Game::render()
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(45.0f, glutGet(GLUT_WINDOW_WIDTH) / (float)glutGet(GLUT_WINDOW_HEIGHT), 0.1f, 100.0f);
-    // Configurar câmera
     glMatrixMode(GL_MODELVIEW);
+
     glLoadIdentity();
     camera.applyView(player);
-    // gui.drawGround(currentMap, WORLD_SIZE, trailCurvePoints, trailClearings);
+
     drawGround();
     drawLakes();
 
-    // Desenhar objetos
     for (auto &object : gameObjects)
     {
         if (object->isActive())
         {
             if (auto boss = dynamic_cast<Boss *>(object.get()))
             {
-                // if (currentMap == MapType::BOSS)
-                // {
                 boss->drawForLoader(loader);
-                // }
             }
             else
             {
-                object->draw(); // Se não for um Boss, apenas desenha
+                object->draw();
             }
         }
     }
 
     loader.drawForId(0);
-
     loader.updateModelTranslationXById(0, player.getX());
     loader.updateModelTranslationYById(0, player.getY());
     loader.updateModelTranslationZById(0, player.getZ() - 0.4f);
-
     player.draw();
-    // Desenhar HUD
+
     hud.drawHUD(player, gameMode, showPortalMessage, isOpenHouse);
-
     if (this->getGameMode() == STATE_GAME::SKILL_TREE)
-    {
         hud.drawSkillTree(skillNodes, skillTooltip);
-    }
-
     if (this->getGameMode() == STATE_GAME::MENU || this->getGameMode() == STATE_GAME::GAME_OVER)
-    {
         hud.drawMainHUD(player, gameMode, button_action, volume);
-    }
 }
-
 void Game::drawGround()
 {
     const float step = 1.0f;
@@ -1233,124 +1123,109 @@ void Game::drawGround()
     GLfloat diffuse[4];
     GLfloat specular[4];
     GLfloat shininess;
+    GLuint texturaAtual;
 
     if (currentMap == MapType::DUNGEON_ONE_LEVEL)
     {
+        ambient[0] = 0.25f;
+        ambient[1] = 0.2f;
+        ambient[2] = 0.2f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.5f;
+        diffuse[1] = 0.3f;
+        diffuse[2] = 0.3f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.2f;
+        specular[1] = 0.15f;
+        specular[2] = 0.15f;
+        specular[3] = 1.0f;
+        shininess = 12.0f;
+        texturaAtual = texturaDungeon1;
+    }
+    else if (currentMap == MapType::DUNGEON_TWO_LEVEL)
+    {
         ambient[0] = 0.2f;
+        ambient[1] = 0.25f;
+        ambient[2] = 0.35f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.3f;
+        diffuse[1] = 0.35f;
+        diffuse[2] = 0.45f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.15f;
+        specular[1] = 0.2f;
+        specular[2] = 0.25f;
+        specular[3] = 1.0f;
+        shininess = 15.0f;
+        texturaAtual = texturaDungeon2;
+    }
+    else if (currentMap == MapType::DUNGEON_THREE_LEVEL)
+    {
+        ambient[0] = 0.35f;
         ambient[1] = 0.15f;
-        ambient[2] = 0.15f;
+        ambient[2] = 0.25f;
         ambient[3] = 1.0f;
         diffuse[0] = 0.4f;
         diffuse[1] = 0.2f;
-        diffuse[2] = 0.2f;
+        diffuse[2] = 0.3f;
         diffuse[3] = 1.0f;
-        specular[0] = 0.15f;
+        specular[0] = 0.25f;
+        specular[1] = 0.1f;
+        specular[2] = 0.15f;
+        specular[3] = 1.0f;
+        shininess = 18.0f;
+        texturaAtual = texturaDungeon3;
+    }
+    else if (currentMap == MapType::BOSS)
+    {
+        ambient[0] = 0.25f;
+        ambient[1] = 0.25f;
+        ambient[2] = 0.25f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.8f;
+        diffuse[1] = 0.3f;
+        diffuse[2] = 0.3f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.5f;
+        specular[1] = 0.5f;
+        specular[2] = 0.5f;
+        specular[3] = 1.0f;
+        shininess = 30.0f;
+        texturaAtual = texturaBoss;
+    }
+    else if (currentMap == MapType::PARASIDE)
+    {
+        ambient[0] = 0.45f;
+        ambient[1] = 0.45f;
+        ambient[2] = 0.45f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.65f;
+        diffuse[1] = 0.85f;
+        diffuse[2] = 0.65f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.35f;
+        specular[1] = 0.35f;
+        specular[2] = 0.35f;
+        specular[3] = 1.0f;
+        shininess = 15.0f;
+        texturaAtual = texturaParaside;
+    }
+    else
+    {
+        ambient[0] = 0.15f;
+        ambient[1] = 0.65f;
+        ambient[2] = 0.4f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.15f;
+        diffuse[1] = 0.35f;
+        diffuse[2] = 0.15f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.1f;
         specular[1] = 0.1f;
         specular[2] = 0.1f;
         specular[3] = 1.0f;
-        shininess = 12.0f;
-    }
-
-    if (currentMap == MapType::DUNGEON_TWO_LEVEL)
-    {
-        ambient[0] = 0.15f;
-        ambient[1] = 0.2f;
-        ambient[2] = 0.3f;
-        ambient[3] = 1.0f;
-        diffuse[0] = 0.25f;
-        diffuse[1] = 0.3f;
-        diffuse[2] = 0.4f;
-        diffuse[3] = 1.0f;
-        specular[0] = 0.1f;
-        specular[1] = 0.15f;
-        specular[2] = 0.2f;
-        specular[3] = 1.0f;
-        shininess = 15.0f;
-    }
-
-    if (currentMap == MapType::DUNGEON_THREE_LEVEL)
-    {
-        ambient[0] = 0.3f;
-        ambient[1] = 0.1f;
-        ambient[2] = 0.2f;
-        ambient[3] = 1.0f;
-        diffuse[0] = 0.35f;
-        diffuse[1] = 0.15f;
-        diffuse[2] = 0.25f;
-        diffuse[3] = 1.0f;
-        specular[0] = 0.2f;
-        specular[1] = 0.05f;
-        specular[2] = 0.1f;
-        specular[3] = 1.0f;
-        shininess = 18.0f;
-    }
-
-    if (currentMap == MapType::BOSS)
-    {
-        ambient[0] = 0.05f;
-        ambient[1] = 0.05f;
-        ambient[2] = 0.05f;
-        ambient[3] = 1.0f;
-        diffuse[0] = 0.5f;
-        diffuse[1] = 0.05f;
-        diffuse[2] = 0.05f;
-        diffuse[3] = 1.0f;
-        specular[0] = 0.3f;
-        specular[1] = 0.3f;
-        specular[2] = 0.3f;
-        specular[3] = 1.0f;
-        shininess = 20.0f;
-    }
-
-    if (currentMap == MapType::BOSS)
-    {
-        ambient[0] = 0.2f;
-        ambient[1] = 0.2f;
-        ambient[2] = 0.2f;
-        ambient[3] = 1.0f;
-        diffuse[0] = 0.7f;
-        diffuse[1] = 0.2f;
-        diffuse[2] = 0.2f;
-        diffuse[3] = 1.0f;
-        specular[0] = 0.4f;
-        specular[1] = 0.4f;
-        specular[2] = 0.4f;
-        specular[3] = 1.0f;
-        shininess = 25.0f;
-    }
-
-    if (currentMap == MapType::PARASIDE)
-    {
-        ambient[0] = 0.4f;
-        ambient[1] = 0.4f;
-        ambient[2] = 0.4f;
-        ambient[3] = 1.0f;
-        diffuse[0] = 0.6f;
-        diffuse[1] = 0.8f;
-        diffuse[2] = 0.6f;
-        diffuse[3] = 1.0f;
-        specular[0] = 0.3f;
-        specular[1] = 0.3f;
-        specular[2] = 0.3f;
-        specular[3] = 1.0f;
-        shininess = 10.0f;
-    }
-
-    if (currentMap == MapType::MAIN)
-    {
-        ambient[0] = 0.1f;
-        ambient[1] = 0.6f;
-        ambient[2] = 0.35f;
-        ambient[3] = 1.0f;
-        diffuse[0] = 0.1f;
-        diffuse[1] = 0.3f;
-        diffuse[2] = 0.1f;
-        diffuse[3] = 1.0f;
-        specular[0] = 0.05f;
-        specular[1] = 0.05f;
-        specular[2] = 0.05f;
-        specular[3] = 1.0f;
-        shininess = 5.0f;
+        shininess = 8.0f;
+        texturaAtual = texturaGrama;
     }
 
     glDisable(GL_COLOR_MATERIAL);
@@ -1358,6 +1233,11 @@ void Game::drawGround()
     glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
     glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
     glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texturaAtual);
+
+    float texScale = 0.5f;
 
     for (float x = -size; x < size; x += step)
     {
@@ -1369,20 +1249,45 @@ void Game::drawGround()
             float y4 = getTerrainHeight(x, z + step);
 
             glBegin(GL_QUADS);
+            float nx1 = x - (x + step);
+            float ny1 = y1 - y2;
+            float nz1 = z - z;
+            float len1 = sqrt(nx1 * nx1 + ny1 * ny1 + nz1 * nz1);
+            if (len1 > 0)
+            {
+                glNormal3f(nx1 / len1, ny1 / len1, nz1 / len1);
+            }
+            else
+            {
+                glNormal3f(0, 1, 0);
+            }
+
+            glTexCoord2f(x * texScale, z * texScale);
             glVertex3f(x, y1, z);
+
+            glTexCoord2f((x + step) * texScale, z * texScale);
             glVertex3f(x + step, y2, z);
+
+            glTexCoord2f((x + step) * texScale, (z + step) * texScale);
             glVertex3f(x + step, y3, z + step);
+
+            glTexCoord2f(x * texScale, (z + step) * texScale);
             glVertex3f(x, y4, z + step);
+
             glEnd();
         }
     }
 
-    // Trilhas
-    GLfloat trailColor[] = {0.5f, 0.4f, 0.2f};
-    glDisable(GL_COLOR_MATERIAL);
-    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, trailColor);
+    glDisable(GL_TEXTURE_2D);
 
-    float trailWidth = 0.5f; // mais sutil
+    GLfloat trailColor[] = {0.55f, 0.45f, 0.25f, 1.0f};
+    GLfloat trailSpecular[] = {0.2f, 0.2f, 0.2f, 1.0f};
+
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, trailColor);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, trailSpecular);
+    glMaterialf(GL_FRONT, GL_SHININESS, 10.0f);
+
+    float trailWidth = 0.5f;
     for (size_t i = 1; i < trailCurvePoints.size(); ++i)
     {
         TrailPoint p1 = trailCurvePoints[i - 1];
@@ -1398,6 +1303,8 @@ void Game::drawGround()
         dz /= len;
 
         glBegin(GL_TRIANGLE_STRIP);
+        glNormal3f(0.0f, 1.0f, 0.0f);
+
         glVertex3f(p1.x + dx * trailWidth, p1.y, p1.z + dz * trailWidth);
         glVertex3f(p1.x - dx * trailWidth, p1.y, p1.z - dz * trailWidth);
         glVertex3f(p2.x + dx * trailWidth, p2.y, p2.z + dz * trailWidth);
@@ -1405,7 +1312,9 @@ void Game::drawGround()
         glEnd();
     }
 
-    // Clareiras
+    GLfloat clearingColor[] = {0.6f, 0.5f, 0.3f, 1.0f};
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, clearingColor);
+
     for (const auto &c : trailClearings)
     {
         float radius = 1.5f;
@@ -1413,6 +1322,8 @@ void Game::drawGround()
         float centerY = getTerrainHeight(c.x, c.z) + 0.01f;
 
         glBegin(GL_TRIANGLE_FAN);
+        glNormal3f(0.0f, 1.0f, 0.0f);
+
         glVertex3f(c.x, centerY, c.z);
         for (int i = 0; i <= segments; ++i)
         {
@@ -1445,7 +1356,6 @@ void Game::drawLakes()
         float cz = center.second;
         float radius = 3.5f;
 
-        // altura da água
         float minEdgeHeight = 1000.0f;
         for (int angle = 0; angle < 360; angle += 10)
         {
@@ -1458,13 +1368,11 @@ void Game::drawLakes()
                 minEdgeHeight = height;
             }
         }
-        float waterHeight = minEdgeHeight - 0.02f; // ligeiramente abaixo da borda mais baixa
+        float waterHeight = minEdgeHeight - 0.02f;
 
-        // Cor da água
         float depthColor = std::min(1.0f, (waterHeight + 1.0f) / 5.0f);
         glColor4f(0.0f, 0.4f + 0.1f * sin(time), 0.7f, 0.25f);
 
-        // Desenhar tampo superior (superfície da água)
         glBegin(GL_TRIANGLE_FAN);
         glVertex3f(cx, waterHeight, cz);
         for (int angle = 0; angle <= 360; angle += 10)
@@ -1477,8 +1385,7 @@ void Game::drawLakes()
             float terrainHeight = getTerrainHeight(x, z);
             float depth = waterHeight - terrainHeight;
 
-            // Mapeia profundidade para alpha (quanto mais fundo, menos transparente)
-            float alpha = std::min(0.5f, std::max(0.15f, depth * 0.8f)); // ajuste fino aqui
+            float alpha = std::min(0.5f, std::max(0.15f, depth * 0.8f));
             glColor4f(0.2f, 0.6f + 0.1f * sin(time), 0.8f, alpha);
 
             glVertex3f(x, waterHeight + wave, z);
@@ -1499,7 +1406,6 @@ void Game::calculateSkillTreeLayout()
 
     skillNodes.clear();
 
-    // Definir layout básico com nós de habilidades básicas no centro
     float centerX = windowWidth / 2.0f;
     float centerY = windowHeight / 2.0f;
     float baseRadius = 30.0f;
@@ -1580,9 +1486,7 @@ void Game::checkCollisions()
     }
 }
 
-void Game::constrainPlayer()
-{
-    // Manter o jogador dentro dos limites do mundo
+void Game::constrainPlayer(){
     float x = player.getX();
     float z = player.getZ();
 
@@ -1613,18 +1517,15 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
             gameMode = STATE_GAME::PLAYING_EXPLORER;
             return;
         }
-        if (key >= '1' && key <= '9')
-        {
+        if (key >= '1' && key <= '9'){
             int skillIndex = key - '1';
             const auto &skills = player.getSkillTree().getSkills();
             sound.playAudio(5, volume.UI);
 
-            if (skillIndex < static_cast<int>(skills.size()))
-            {
+            if (skillIndex < static_cast<int>(skills.size())){
 
                 std::string skillName = skills[skillIndex]->getName();
-                if (player.getSkillTree().useSkillPoint(skillName))
-                {
+                if (player.getSkillTree().useSkillPoint(skillName)){
                     sound.playAudio(10, volume.UI);
                 }
                 else
@@ -1635,16 +1536,13 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
         return;
     }
 
-    if (this->getGameMode() == STATE_GAME::MENU)
-    {
-        if (key == 9)
-        {
+    if (this->getGameMode() == STATE_GAME::MENU){
+        if (key == 9){
             sound.playAudio(5, volume.UI);
             gameMode = STATE_GAME::PLAYING_EXPLORER;
             return;
         }
-        if (key == 'k')
-        {
+        if (key == 'k'){
             sound.playAudio(5, volume.UI);
             gameMode = STATE_GAME::SKILL_TREE;
             return;
@@ -1669,11 +1567,9 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
             static bool isAttacking = false;
             static float attackProgress = 0.1f;
             const float attackSpeed = 0.2f;
-            for (auto &object : gameObjects)
-            {
+            for (auto &object : gameObjects){
                 Enemy *enemy = dynamic_cast<Enemy *>(object.get());
-                if (enemy && enemy->isActive())
-                {
+                if (enemy && enemy->isActive()){
                     float dx = enemy->getX() - player.getX();
                     float dz = enemy->getZ() - player.getZ();
                     float dist = std::sqrt(dx * dx + dz * dz);
@@ -1687,13 +1583,11 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
                     }
                 }
                 Boss *cat = dynamic_cast<Boss *>(object.get());
-                if (cat && cat->isActive())
-                {
+                if (cat && cat->isActive()){
                     float dx = cat->getX() - player.getX();
                     float dz = cat->getZ() - player.getZ();
                     float dist = std::sqrt(dx * dx + dz * dz);
-                    if (dist < 2.0f)
-                    {
+                    if (dist < 2.0f) {
                         isAttacking = true;
                         attackProgress = 0.0f;
                         cat->takeDamage(player.getAttackDamage() * 0.7f, AttackType::PHYSICAL);
@@ -1705,45 +1599,30 @@ void Game::handleKeyPress(unsigned char key, int x, int y)
         }
 
     case 'x':
-            if (player.attack())
-            {
-                for (auto &object : gameObjects)
-                {
-                    Enemy *enemy = dynamic_cast<Enemy *>(object.get());
-                    if (enemy && enemy->isActive())
-                    {
-                        float dx = enemy->getX() - player.getX();
-                        float dz = enemy->getZ() - player.getZ();
-                        float dist = std::sqrt(dx * dx + dz * dz);
-                        if (dist < 4.0f)
-                        {
-                            sound.playAudio(14, volume.efeitos);
-                            float damage = player.getAttackDamage() * 0.5f;
-                            enemy->takeDamage(damage, AttackType::FIRE);
-                        }
+        if (player.attack()){
+            for (auto &object : gameObjects){
+                Enemy *enemy = dynamic_cast<Enemy *>(object.get());
+                if (enemy && enemy->isActive()){
+                    float dx = enemy->getX() - player.getX();
+                    float dz = enemy->getZ() - player.getZ();
+                    float dist = std::sqrt(dx * dx + dz * dz);
+                    if (dist < 4.0f){
+                        sound.playAudio(14, volume.efeitos);
+                        float damage = player.getAttackDamage() * 0.5f;
+                        enemy->takeDamage(damage, AttackType::FIRE);
                     }
                 }
-            }
-        if (currentMap == MapType::BOSS)
-        {
-            if (player.attack())
-            {
-                for (auto &object : gameObjects)
-                {
-                    Boss *boss = dynamic_cast<Boss *>(object.get());
-                    if (boss && boss->isActive())
-                    {
-                        float dx = boss->getX() - player.getX();
-                        float dz = boss->getZ() - player.getZ();
-                        float dist = std::sqrt(dx * dx + dz * dz);
-                        if (dist < 3.0f)
-                        {
-                            isAttacking = true;
-                            attackProgress = 0.0f;
-                            boss->takeDamage(player.getAttackDamage() * 0.4f, AttackType::PHYSICAL);
-                            sound.playAudio(2, volume.efeitos);
-                            break;
-                        }
+                Boss *boss = dynamic_cast<Boss *>(object.get());
+                if (boss && boss->isActive()){
+                    float dx = boss->getX() - player.getX();
+                    float dz = boss->getZ() - player.getZ();
+                    float dist = std::sqrt(dx * dx + dz * dz);
+                    if (dist < 3.0f){
+                        isAttacking = true;
+                        attackProgress = 0.0f;
+                        boss->takeDamage(player.getAttackDamage() * 0.4f, AttackType::PHYSICAL);
+                        sound.playAudio(2, volume.efeitos);
+                        break;
                     }
                 }
             }
@@ -1827,7 +1706,6 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
         float rightX = -cos(camAngleRad);
         float rightZ = sin(camAngleRad);
 
-        // Usando a velocidade do jogador
         float speed = player.getMovementSpeed() * 10.0f;
         float moveX = (deltaX * rightX + deltaZ * forwardX) * speed;
         float moveZ = (deltaX * rightZ + deltaZ * forwardZ) * speed;
@@ -1852,7 +1730,6 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
 
         if (skillTooltip.x + skillTooltip.width > windowWidth)
             skillTooltip.x = windowWidth - skillTooltip.width - 10;
-
         if (skillTooltip.y < 10)
             skillTooltip.y = 10;
         else if (skillTooltip.y + skillTooltip.height > windowHeight)
@@ -1932,38 +1809,30 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
             if (hoverIndexButton >= 0 && hoverIndexButton < static_cast<int>(hud.getButtonMenu().size()))
             {
                 button_action = hud.getButtonMenu()[hoverIndexButton].destino;
-                printf("button_action: %d\n", button_action);
 
                 switch (button_action)
                 {
                 case ACTION_BUTTON::EXIT:
                     exit(0);
                     break;
-
                 case ACTION_BUTTON::VOLUME_AMBIENT_DECREASE:
                     volume.ambient = std::max(0.0f, volume.ambient - 0.05f);
                     break;
-
                 case ACTION_BUTTON::VOLUME_AMBIENT_INCREASE:
                     volume.ambient = std::min(1.0f, volume.ambient + 0.05f);
                     break;
-
                 case ACTION_BUTTON::VOLUME_EFFECTS_DECREASE:
                     volume.efeitos = std::max(0.0f, volume.efeitos - 0.05f);
                     break;
-
                 case ACTION_BUTTON::VOLUME_EFFECTS_INCREASE:
                     volume.efeitos = std::min(1.0f, volume.efeitos + 0.05f);
                     break;
-
                 case ACTION_BUTTON::VOLUME_MUSIC_DECREASE:
                     volume.musica = std::max(0.0f, volume.musica - 0.05f);
                     break;
-
                 case ACTION_BUTTON::VOLUME_MUSIC_INCREASE:
                     volume.musica = std::min(1.0f, volume.musica + 0.05f);
                     break;
-
                 case ACTION_BUTTON::VOLUME_UI_DECREASE:
                     volume.UI = std::max(0.0f, volume.UI - 0.05f);
                     break;
@@ -1985,7 +1854,6 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
                     break;
                 }
 
-                // Update sound volumes
                 sound.setVolume(0, volume.musica);
                 sound.setVolume(1, volume.musica);
                 sound.setVolume(2, volume.efeitos);
@@ -2007,6 +1875,7 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
                 sound.setVolume(18, volume.efeitos);
                 sound.setVolume(19, volume.musica);
                 sound.setVolume(20, volume.musica);
+                sound.setVolume(21, volume.efeitos);
             }
         }
     }
@@ -2218,16 +2087,13 @@ void Game::handleJoystick(unsigned int btn, int x, int y, int z)
         std::cout << "Botão TOUCH liberado." << std::endl;
     }
 
-    // Atualiza o estado anterior dos botões
     previousButtonMask = buttonMask;
 }
-// Adicionar estes métodos à classe Game
-void Game::handleMouseClick(int button, int state, int x, int y)
-{
+
+void Game::handleMouseClick(int button, int state, int x, int y){
     lastMouseX = x;
     lastMouseY = y;
-    if (button == GLUT_LEFT_BUTTON)
-    {
+    if (button == GLUT_LEFT_BUTTON){
         mouseLeftDown = (state == GLUT_DOWN);
         if (mouseLeftDown && gameMode == STATE_GAME::SKILL_TREE)
             checkSkillTreeClick(x, y);
@@ -2294,7 +2160,7 @@ void Game::updateMoviment()
     }
     else if (!isMoving && isSoundPlaying)
     {
-        sound.stopAudioRepeter(7); // Pare o som quando não estiver se movendo
+        sound.stopAudioRepeter(7);
         isSoundPlaying = false;
     }
 }
@@ -2347,13 +2213,9 @@ void Game::handlePassiveMouseMotion(int x, int y)
 void Game::checkSkillTreeClick(int x, int y)
 {
     int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
-    y = windowHeight - y; // Inverter coordenada Y para corresponder ao nosso sistema
-
-    // Verificar se clicou no botão de confirmação, se a tooltip estiver visível
-    if (skillTooltip.visible && skillTooltip.showConfirmation)
-    {
+    y = windowHeight - y; 
+    if (skillTooltip.visible && skillTooltip.showConfirmation){
         sound.playAudio(5, volume.UI);
-        // Verificar se clicou no botão "Sim"
         if (x >= skillTooltip.x + 30 &&
             x <= skillTooltip.x + 100 &&
             y >= skillTooltip.y + 20 &&
@@ -2370,7 +2232,6 @@ void Game::checkSkillTreeClick(int x, int y)
             return;
         }
 
-        // Verificar se clicou no botão "Não"
         if (x >= skillTooltip.x + 150 &&
             x <= skillTooltip.x + 220 &&
             y >= skillTooltip.y + 20 &&
@@ -2392,7 +2253,7 @@ void Game::checkSkillTreeClick(int x, int y)
         {
             skillTooltip.visible = true;
             skillTooltip.skillIndex = node.skillIndex;
-            skillTooltip.x = x + 20; // Posicionar a tooltip ao lado do mouse
+            skillTooltip.x = x + 20; 
             skillTooltip.y = y - skillTooltip.height / 2;
             skillTooltip.showConfirmation = true;
             int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
@@ -2512,6 +2373,7 @@ void Game::handleButtonMenuClick(int x, int y)
                 sound.setVolume(18, volume.efeitos);
                 sound.setVolume(19, volume.musica);
                 sound.setVolume(20, volume.musica);
+                sound.setVolume(21, volume.efeitos);
             }
         }
     }
@@ -2520,7 +2382,7 @@ void Game::handleButtonMenuClick(int x, int y)
 void Game::updateSkillNodeHover(int x, int y)
 {
     int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
-    y = windowHeight - y; // Inverter coordenada Y
+    y = windowHeight - y;
 
     for (auto &node : skillNodes)
     {
@@ -2540,8 +2402,6 @@ void Game::saveScreenshotBMP(const char *filename, int width, int height)
         printf("Erro ao abrir o arquivo para salvar.\n");
         return;
     }
-
-    // Calcula padding para garantir que cada linha tem um múltiplo de 4 bytes
     int padding = (4 - (width * 3) % 4) % 4;
     int rowSize = width * 3 + padding;
     int imageSize = rowSize * height;
@@ -2569,20 +2429,15 @@ void Game::saveScreenshotBMP(const char *filename, int width, int height)
     fwrite(&bmpHeader, sizeof(BMPHeader), 1, file);
     fwrite(&bmpInfoHeader, sizeof(BMPInfoHeader), 1, file);
 
-    // Aloca buffer para os pixels do OpenGL
     std::vector<GLubyte> pixels(3 * width * height);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-
-    // Aloca buffer para a imagem rotacionada 180 graus
     std::vector<GLubyte> rotatedPixels(3 * width * height);
 
-    // Rotaciona a imagem 180 graus (espelhando horizontalmente e verticalmente)
     for (int y = 0; y < height; y++)
     {
         for (int x = 0; x < width; x++)
         {
-            // Posição original
             int srcPos = (y * width + x) * 3;
 
             int destPos = ((height - 1 - y) * width + (width - 1 - x)) * 3;
@@ -2610,7 +2465,6 @@ void Game::saveScreenshotBMP(const char *filename, int width, int height)
 
 void Game::shareScreenshot(int width, int height)
 {
-    // Gerar nome do arquivo com data e hora
     time_t now = time(nullptr);
     struct tm *t = localtime(&now);
     char filename[128];
@@ -2621,9 +2475,9 @@ void Game::shareScreenshot(int width, int height)
 void Game::updateButtonMenuHover(int x, int y)
 {
     int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
-    float mouseYGL = windowHeight - y; // Ajusta Y para o sistema de coordenadas do OpenGL
+    float mouseYGL = windowHeight - y; 
 
-    int hoveredID = -1; // Nenhum botão em hover inicialmente
+    int hoveredID = -1;
 
     for (size_t i = 0; i < hud.getButtonMenu().size(); ++i)
     {
@@ -2674,15 +2528,15 @@ void Game::init()
                 "step.wav",                       // 17
                 "pum.wav",                        // 18
                 "bomfire.wav",                    // 19
-                "game_over.wav"                   // 20
+                "game_over.wav",                  // 20
+                "thankyou.wav"                    // 21
             });
     }
 }
-// Getters e setters
+
 Player &Game::getPlayer() { return player; }
 STATE_GAME Game::getGameMode() const { return gameMode; }
 void Game::setGameMode(STATE_GAME mode) { gameMode = mode; }
-
 void Game::initCallback() { GetInstance().init(); }
 void Game::mouseCallback(int button, int state, int x, int y) { GetInstance().handleMouseClick(button, state, x, y); }
 void Game::motionCallback(int x, int y) { GetInstance().handleMouseMotion(x, y); }
@@ -2713,10 +2567,9 @@ void Game::timerCallback(int value)
 {
     GetInstance().update();
     glutPostRedisplay();
-    glutTimerFunc(16, timerCallback, 0); // 60 FPS aproximadamente
+    glutTimerFunc(16, timerCallback, 0);
 }
 
-// Singleton para facilitar callbacks
 Game &Game::GetInstance()
 {
     static Game instance;
@@ -2727,12 +2580,10 @@ float Game::getTerrainHeight(float x, float z)
 {
     float height = 0.0f;
 
-    // Colinas suaves
     height += std::sin(x * 0.1f) * 0.5f;
     height += std::cos(z * 0.1f) * 0.5f;
     height += (std::sin(x * 0.3f + z * 0.5f) * 0.3f);
 
-    // Lista de centros de lagos
     std::vector<std::pair<float, float>> lakeCenters = {
         {5.0f, 5.0f},
         {-7.0f, -3.0f},

@@ -4,10 +4,13 @@
 #include <cmath>
 #include <iostream>
 
+extern unsigned int texturaJogador;
+extern unsigned int texturaJogadorCabeca;
+
 Player::Player(float x, float y, float z)
     : GameObject(x, y, z, 0.3f, ObjectType::NPC),
-      rotY(0.0f), health(100.0f), maxHealth(100.0f),
-      level(1), experience(0), experienceToNextLevel(100),
+      rotY(0.0f), health(10000.0f), maxHealth(10000.0f),
+      level(50), experience(0), experienceToNextLevel(100),
       attackCooldown(1.0f), attackTimer(0.0f), 
       upPressed(false), downPressed(false),
       leftPressed(false), rightPressed(false),
@@ -20,38 +23,27 @@ Player::Player(float x, float y, float z)
 
 void Player::update(float deltaTime)
 {
-    // Update attack cooldown timer
-    if (attackTimer > 0)
-    {
+    if (attackTimer > 0){
         attackTimer -= deltaTime;
-        if (attackTimer < 0)
-            attackTimer = 0;
+        if (attackTimer < 0)  attackTimer = 0;
     }
 
-    // Update movement state flags
     wAndNotS = wPressed && !sPressed;
     sAndNotW = sPressed && !wPressed;
     aAndNotD = aPressed && !dPressed;
     dAndNotA = dPressed && !aPressed;
 
-    // Process movement based on flags
     handleMovement();
 }
 
-void Player::handleMovement()
-{
-    // Apply movement based on current movement speed
+void Player::handleMovement(){
     float actualSpeed = getMovementSpeed();
     
-    if (wAndNotS)
-        moveForward();
-    else if (sAndNotW)
-        moveBackward();
+    if (wAndNotS)moveForward();
+    else if (sAndNotW) moveBackward();
 
-    if (aAndNotD)
-        strafeLeft();
-    else if (dAndNotA)
-        strafeRight();
+    if (aAndNotD) strafeLeft();
+    else if (dAndNotA) strafeRight();
 }
 
 void Player::draw()
@@ -60,106 +52,145 @@ void Player::draw()
     glTranslatef(x, y, z);
     glRotatef(rotY, 0.0f, 1.0f, 0.0f);
 
-    // Player material properties
-    GLfloat ambient[] = {0.0f, 0.0f, 0.3f, 1.0f};
-    GLfloat diffuse[] = {0.1f, 0.5f, 0.8f, 0.8f};
-    GLfloat specular[] = {0.9f, 0.4f, 0.4f, 1.0f};
-    GLfloat shininess = 64.0f;
+    glEnable(GL_LIGHTING);
+    glEnable(GL_TEXTURE_2D);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-    glDisable(GL_COLOR_MATERIAL);
-    glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
-    glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
-    glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+    glBindTexture(GL_TEXTURE_2D, texturaJogador);
 
-    // Draw player body
-    glutSolidCube(0.6f);
+    GLfloat bodyAmbient[] = {0.4f, 0.4f, 0.4f, 1.0f};
+    GLfloat bodyDiffuse[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    GLfloat bodySpecular[] = {0.2f, 0.2f, 0.2f, 1.0f};
+    GLfloat bodyShininess = 10.0f;
 
-    // Draw player head
+    glMaterialfv(GL_FRONT, GL_AMBIENT, bodyAmbient);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, bodyDiffuse);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, bodySpecular);
+    glMaterialf(GL_FRONT, GL_SHININESS, bodyShininess);
+
+    float size = 0.3f;
+
+    glBegin(GL_QUADS);
+    
+    glNormal3f(0.0f, 0.0f, 1.0f); 
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-size, -size,  size);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f( size, -size,  size);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f( size,  size,  size);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-size,  size,  size);
+
+    glNormal3f(0.0f, 0.0f, -1.0f); 
+    glTexCoord2f(0.0f, 1.0f); glVertex3f( size, -size, -size);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(-size, -size, -size);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(-size,  size, -size);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f( size,  size, -size);
+
+    glNormal3f(1.0f, 0.0f, 0.0f); 
+    glTexCoord2f(0.0f, 0.0f); glVertex3f( size, -size,  size);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f( size, -size, -size);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f( size,  size, -size);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f( size,  size,  size);
+
+    glNormal3f(-1.0f, 0.0f, 0.0f);  
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-size, -size, -size);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(-size, -size,  size);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(-size,  size,  size);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-size,  size, -size);
+    
+    glNormal3f(0.0f, 1.0f, 0.0f);  
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-size,  size,  size);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f( size,  size,  size);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f( size,  size, -size);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-size,  size, -size);
+
+    glNormal3f(0.0f, -1.0f, 0.0f); 
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-size, -size, -size);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f( size, -size, -size);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f( size, -size,  size);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-size, -size,  size);
+    
+    glEnd();
+
+    glBindTexture(GL_TEXTURE_2D, texturaJogadorCabeca);
+
+    GLfloat headAmbient[] = {0.3f, 0.3f, 0.4f, 1.0f};
+    GLfloat headDiffuse[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    GLfloat headSpecular[] = {0.5f, 0.5f, 0.5f, 1.0f};
+    GLfloat headShininess = 30.0f;
+
+    glMaterialfv(GL_FRONT, GL_AMBIENT, headAmbient);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, headDiffuse);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, headSpecular);
+    glMaterialf(GL_FRONT, GL_SHININESS, headShininess);
+
     glPushMatrix();
-    glTranslatef(0.0f, 0.5f, 0.0f);
-    glutSolidSphere(0.2f, 10, 10);
+    glTranslatef(0.0f, size + 0.2f, 0.0f); 
+    
+    GLUquadric* headQuad = gluNewQuadric();
+    gluQuadricTexture(headQuad, GL_TRUE);
+    gluQuadricNormals(headQuad, GLU_SMOOTH);
+    gluSphere(headQuad, 0.2f, 24, 24);
+    gluDeleteQuadric(headQuad);
+    
     glPopMatrix();
 
+    glDisable(GL_TEXTURE_2D);
     glPopMatrix();
 }
 
-void Player::moveForward()
-{
-    // Calculate movement vector based on player's rotation
+void Player::moveForward(){
     float radians = rotY * M_PI / 180.0f;
     x += (getMovementSpeed() + (running? 0.05f: 0.0f)) * std::sin(radians);
     z += (getMovementSpeed() + (running? 0.05f: 0.0f))  * std::cos(radians);
 }
 
-void Player::moveBackward()
-{
+void Player::moveBackward(){
     float radians = rotY * M_PI / 180.0f;
     x -= (getMovementSpeed() + (running? 0.05f: 0.0f)) * std::sin(radians);
     z -= (getMovementSpeed() + (running? 0.05f: 0.0f))  * std::cos(radians);
 }
 
-void Player::strafeLeft()
-{
+void Player::strafeLeft(){
     float radians = rotY * M_PI / 180.0f;
     x -= (getMovementSpeed() + (running? 0.05f: 0.0f)) * std::cos(radians);
     z += (getMovementSpeed() + (running? 0.05f: 0.0f)) * std::sin(radians);
 }
 
-void Player::strafeRight()
-{
+void Player::strafeRight(){
     float radians = rotY * M_PI / 180.0f;
     x += (getMovementSpeed() + (running? 0.05f: 0.0f)) * std::cos(radians);
     z -= (getMovementSpeed() + (running? 0.05f: 0.0f)) * std::sin(radians);
 }
 
-void Player::rotateRight(float delta)
-{
-    rotY += delta;
-}
-
-void Player::rotateLeft(float delta)
-{
-    rotY -= delta;
-}
-
-bool Player::attack()
-{
-    if (attackTimer <= 0)
-    {
+void Player::rotateRight(float delta){ rotY += delta; }
+void Player::rotateLeft(float delta) { rotY -= delta; }
+bool Player::attack(){
+    if (attackTimer <= 0){
         attackTimer = attackCooldown;
         return true;
     }
+
     return false;
 }
 
-void Player::takeDamage(float amount, const AttackType &attack)
-{
-    // Calculate damage with defense reduction
+void Player::takeDamage(float amount, const AttackType &attack){
     float defenseValue = skillTree.getSkillValue(DEFENSE);
     float damageReduction = defenseValue / (defenseValue + 100.0f);
     amount *= (1.0f - damageReduction);
 
-    // Apply damage to health
     health -= amount;
-    if (health < 0)
-        health = 0;
+    if (health < 0) health = 0;
 
-    // Save current state for proper OpenGL state management
     glPushAttrib(GL_LIGHTING_BIT | GL_CURRENT_BIT);
     
-    // Enable color material for the effect visualization
     glEnable(GL_COLOR_MATERIAL);
     
-    // Create effect based on attack type
-    switch (attack)
-    {
+    switch (attack){
     case AttackType::PHYSICAL:
         std::cout << "Displaying physical effect: impact!" << std::endl;
         glColor3f(1.0f, 0.0f, 0.0f);
         glPushMatrix();
-        glTranslatef(x, y, z); // Position at player location
-        glutSolidSphere(0.4f, 16, 16);   // Red sphere (physical impact)
+        glTranslatef(x, y, z); 
+        glutSolidSphere(0.4f, 16, 16);  
         glPopMatrix();
         break;
 
@@ -167,8 +198,8 @@ void Player::takeDamage(float amount, const AttackType &attack)
         std::cout << "Displaying fire effect: flame burst!" << std::endl;
         glColor3f(1.0f, 0.5f, 0.0f);
         glPushMatrix();
-        glTranslatef(x, y, z); // Position at player location
-        glutSolidSphere(0.3f, 16, 16); // Orange sphere (fire)
+        glTranslatef(x, y, z);
+        glutSolidSphere(0.3f, 16, 16); 
         glPopMatrix();
         break;
 
@@ -176,8 +207,8 @@ void Player::takeDamage(float amount, const AttackType &attack)
         std::cout << "Displaying ice effect: freezing!" << std::endl;
         glColor3f(0.0f, 0.7f, 1.0f);
         glPushMatrix();
-        glTranslatef(x, y, z); // Position at player location
-        glutSolidSphere(0.4f, 16, 16); // Blue sphere (ice)
+        glTranslatef(x, y, z);
+        glutSolidSphere(0.4f, 16, 16); 
         glPopMatrix();
         break;
 
@@ -185,8 +216,8 @@ void Player::takeDamage(float amount, const AttackType &attack)
         std::cout << "Displaying poison effect: toxic pools!" << std::endl;
         glColor3f(0.0f, 1.0f, 0.0f);
         glPushMatrix();
-        glTranslatef(x, y, z); // Position at player location
-        glutSolidSphere(0.35f, 16, 16); // Green sphere (poison)
+        glTranslatef(x, y, z); 
+        glutSolidSphere(0.35f, 16, 16); 
         glPopMatrix();
         break;
 
@@ -194,37 +225,30 @@ void Player::takeDamage(float amount, const AttackType &attack)
         std::cout << "Displaying magic effect: magic glow!" << std::endl;
         glColor3f(0.5f, 0.0f, 0.5f);
         glPushMatrix();
-        glTranslatef(x, y, z); // Position at player location
-        glutSolidSphere(0.45f, 16, 16); // Purple sphere (magic)
+        glTranslatef(x, y, z); 
+        glutSolidSphere(0.45f, 16, 16);
         glPopMatrix();
         break;
 
     default:
         std::cout << "Unknown effect type!" << std::endl;
     }
-    
-    // Restore previous OpenGL state
     glPopAttrib();
 }
 
 void Player::heal(float amount)
 {
     health += amount;
-    if (health > maxHealth)
-        health = maxHealth;
+    if (health > maxHealth) health = maxHealth;
 }
 
 void Player::addExperience(int xp)
 {
     experience += xp;
-    while (experience >= experienceToNextLevel)
-    {
-        levelUp();
-    }
+    while (experience >= experienceToNextLevel) { levelUp(); }
 }
 
-void Player::levelUp()
-{
+void Player::levelUp(){
     level++;
     experience -= experienceToNextLevel;
     experienceToNextLevel = level * 100;
@@ -235,7 +259,6 @@ void Player::levelUp()
     std::cout << "Level increased to " << level << "! Gained a skill point." << std::endl;
 }
 
-// Getters
 float Player::getRotY() const { return rotY; }
 float Player::getHealth() const { return health; }
 float Player::getMaxHealth() const { return maxHealth; }
@@ -244,33 +267,27 @@ int Player::getExperience() const { return experience; }
 int Player::getExperienceToNextLevel() const { return experienceToNextLevel; }
 float Player::getAttackCooldown() const { return attackCooldown; }
 float Player::getAttackTimer() const { return attackTimer; }
-
-float Player::getAttackDamage() const
-{
-    float baseAttack = 30.0f;
+float Player::getAttackDamage() const{
+    float baseAttack = 300.0f;
     float attackBonus = skillTree.getSkillValue(ATTACK);
     return baseAttack + attackBonus;
 }
 
-float Player::getMovementSpeed() const
-{
+float Player::getMovementSpeed() const{
     float baseSpeed = MOVEMENT_SPEED;
     float speedBonus = skillTree.getSkillValue(SPEED) * 0.01f;
     return baseSpeed * (1.0f + speedBonus);
 }
 
-SkillTree &Player::getSkillTree()
-{
+SkillTree &Player::getSkillTree(){
     return skillTree;
 }
 
-void Player::setSpeed(float movementSpeed)
-{
+void Player::setSpeed(float movementSpeed){
     this->MOVEMENT_SPEED = movementSpeed;
 }
 
-void Player::reset()
-{
+void Player::reset(){
     x = 0.0f;
     y = 0.0f;
     z = 0.0f;
@@ -290,7 +307,5 @@ void Player::reset()
     upAndNotDown = downAndNotW = leftAndNotRight = rightAndNotLeft = false;
     wAndNotS = sAndNotW = aAndNotD = dAndNotA = false;
 
-    skillTree.reset(); // Se o skillTree tiver uma função de reset
-
-    std::cout << "Player resetado." << std::endl;
+    skillTree.reset(); 
 }

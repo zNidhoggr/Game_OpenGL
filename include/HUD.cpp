@@ -8,7 +8,6 @@ HUD::HUD(Player &player) : player(player) {}
 
 void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, bool isOpenHouse)
 {
-    // Desativar iluminação e teste de profundidade para desenho 2D
     glDisable(GL_LIGHTING);
     glDisable(GL_DEPTH_TEST);
     glMatrixMode(GL_PROJECTION);
@@ -23,15 +22,12 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
     int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
     int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
     
-    // Configurações das barras
     float barWidth = 220.0f;
     float barHeight = 24.0f;
     float barSpacing = 34.0f;
     float barStartY = windowHeight - 40;
     float barStartX = 20;
     
-    // ----- BARRA DE VIDA -----
-    // Fundo da barra de vida
     float healthPercent = player.getHealth() / player.getMaxHealth();
     glColor3f(0.3f, 0.3f, 0.3f);
     glBegin(GL_QUADS);
@@ -41,24 +37,20 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
     glVertex2f(barStartX, barStartY - barHeight);
     glEnd();
 
-    // Preenchimento da barra de vida com gradiente
     glBegin(GL_QUADS);
-    glColor3f(0.8f, 0.0f, 0.0f);  // Vermelho escuro
+    glColor3f(0.8f, 0.0f, 0.0f); 
     glVertex2f(barStartX, barStartY);
     glVertex2f(barStartX, barStartY - barHeight);
-    glColor3f(1.0f, 0.3f, 0.3f);  // Vermelho claro
+    glColor3f(1.0f, 0.3f, 0.3f); 
     glVertex2f(barStartX + barWidth * healthPercent, barStartY - barHeight);
     glVertex2f(barStartX + barWidth * healthPercent, barStartY);
     glEnd();
 
-    // Texto da vida
     glColor3f(1.0f, 1.0f, 1.0f);
     char buffer[128];
     sprintf(buffer, "Vida: %.1f/%.1f", player.getHealth(), player.getMaxHealth());
     drawText(barStartX + 5, barStartY - barHeight/2 - 5, buffer, 12);
 
-    // ----- BARRA DE EXPERIÊNCIA -----
-    // Fundo da barra de experiência
     float expPercent = (float)player.getExperience() / (float)player.getExperienceToNextLevel();
     glColor3f(0.3f, 0.3f, 0.3f);
     glBegin(GL_QUADS);
@@ -68,25 +60,22 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
     glVertex2f(barStartX, barStartY - barSpacing - barHeight);
     glEnd();
 
-    // Preenchimento da barra de experiência com gradiente
+
     glBegin(GL_QUADS);
-    glColor3f(0.1f, 0.3f, 0.8f);   // Azul escuro
+    glColor3f(0.1f, 0.3f, 0.8f);  
     glVertex2f(barStartX, barStartY - barSpacing);
     glVertex2f(barStartX, barStartY - barSpacing - barHeight);
-    glColor3f(0.4f, 0.7f, 1.0f);   // Azul claro
+    glColor3f(0.4f, 0.7f, 1.0f);   
     glVertex2f(barStartX + barWidth * expPercent, barStartY - barSpacing - barHeight);
     glVertex2f(barStartX + barWidth * expPercent, barStartY - barSpacing);
     glEnd();
 
-    // Texto da experiência
     glColor3f(1.0f, 1.0f, 1.0f);
     sprintf(buffer, "Nivel: %d   XP: %d/%d", player.getLevel(), player.getExperience(), player.getExperienceToNextLevel());
     drawText(barStartX + 5, barStartY - barSpacing - barHeight/2 - 5, buffer, 12);
 
-    // ----- BARRA DE COOLDOWN DE ATAQUE -----
     float cooldownPercent = player.getAttackTimer() / player.getAttackCooldown();
     if (cooldownPercent > 0) {
-        // Fundo da barra de cooldown
         glColor3f(0.3f, 0.3f, 0.3f);
         glBegin(GL_QUADS);
         glVertex2f(barStartX, barStartY - barSpacing * 2);
@@ -95,22 +84,19 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
         glVertex2f(barStartX, barStartY - barSpacing * 2 - barHeight);
         glEnd();
 
-        // Preenchimento da barra de cooldown com gradiente
         glBegin(GL_QUADS);
-        glColor3f(0.8f, 0.6f, 0.1f);   // Amarelo escuro
+        glColor3f(0.8f, 0.6f, 0.1f); 
         glVertex2f(barStartX, barStartY - barSpacing * 2);
         glVertex2f(barStartX, barStartY - barSpacing * 2 - barHeight);
-        glColor3f(1.0f, 0.8f, 0.2f);   // Amarelo claro
+        glColor3f(1.0f, 0.8f, 0.2f); 
         glVertex2f(barStartX + barWidth * (1.0f - cooldownPercent), barStartY - barSpacing * 2 - barHeight);
         glVertex2f(barStartX + barWidth * (1.0f - cooldownPercent), barStartY - barSpacing * 2);
         glEnd();
 
-        // Texto do cooldown
         glColor3f(1.0f, 1.0f, 1.0f);
         sprintf(buffer, "Ataque: %.1f", player.getAttackCooldown() - player.getAttackTimer());
         drawText(barStartX + 5, barStartY - barSpacing * 2 - barHeight/2 - 5, buffer, 12);
     } else {
-        // Fundo da barra de cooldown quando pronto
         glColor3f(0.3f, 0.3f, 0.3f);
         glBegin(GL_QUADS);
         glVertex2f(barStartX, barStartY - barSpacing * 2);
@@ -119,7 +105,6 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
         glVertex2f(barStartX, barStartY - barSpacing * 2 - barHeight);
         glEnd();
 
-        // Barra completa quando ataque está pronto
         glColor3f(0.2f, 0.8f, 0.2f);
         glBegin(GL_QUADS);
         glVertex2f(barStartX, barStartY - barSpacing * 2);
@@ -128,13 +113,10 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
         glVertex2f(barStartX, barStartY - barSpacing * 2 - barHeight);
         glEnd();
 
-        // Texto indicando que o ataque está pronto
         glColor3f(1.0f, 1.0f, 1.0f);
         drawText(barStartX + 5, barStartY - barSpacing * 2 - barHeight/2 - 5, "Ataque Pronto!", 12);
     }
 
-    // ----- STATUS DO JOGO -----
-    // Exibir status do jogo atual
     if (gameMode == STATE_GAME::COMBAT) {
         glColor3f(1.0f, 0.2f, 0.2f);
         drawText(windowWidth / 2 - 50, windowHeight - 25, "COMBATE", 14);
@@ -148,14 +130,12 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
         drawText(windowWidth / 2 - 60, windowHeight - 25, "EXPLORACAO", 14);
     }
 
-    // Exibir pontos de habilidade disponíveis, se houver
     if (player.getSkillTree().getSkillPoints() > 0) {
         glColor3f(1.0f, 1.0f, 0.0f);
         sprintf(buffer, "Pontos de Habilidade: %d (Pressione K para abrir menu)", player.getSkillTree().getSkillPoints());
         drawText(windowWidth - 400, windowHeight - 25, buffer, 12);
     }
 
-    // Exibir mensagens de portal/casa
     if (showPortalMessage) {
         glColor3f(1.0f, 1.0f, 0.0f);
         drawText(windowWidth / 2 - 100, 100, "Pressione [Enter] para entrar", 12);
@@ -165,7 +145,7 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
         drawText(windowWidth / 2 - 100, 100, "Pressione [Enter] para entrar", 12);
     }
 
-    // Restaurar estado OpenGL
+
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
@@ -177,14 +157,12 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
 {
     calculateSkillTreeLayout(skillN);
     
-    // Salvar estado OpenGL e configurar para desenho 2D
+
     glPushAttrib(GL_ENABLE_BIT);
     glDisable(GL_LIGHTING);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // Configurar projeção ortográfica
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
@@ -196,7 +174,6 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
     glPushMatrix();
     glLoadIdentity();
 
-    // Desenhar painel de fundo
     const float panelPadding = 50.0f;
     const float panelAlpha = 0.85f;
     glColor4f(0.0f, 0.0f, 0.2f, panelAlpha);
@@ -207,7 +184,6 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
     glVertex2f(panelPadding, windowHeight - panelPadding);
     glEnd();
 
-    // Título e informações
     const float centerX = windowWidth / 2.0f;
     glColor3f(1.0f, 1.0f, 0.0f);
     drawText(centerX - 80, windowHeight - 80, "ÁRVORE DE HABILIDADES", 14);
@@ -216,7 +192,6 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
     const int availablePoints = player.getSkillTree().getSkillPoints();
     std::snprintf(buffer, sizeof(buffer), "Pontos Disponíveis: %d", availablePoints);
     
-    // Destacar pontos disponíveis com cor diferente se houver pontos
     if (availablePoints > 0) {
         glColor3f(0.2f, 1.0f, 0.2f);
     } else {
@@ -224,17 +199,14 @@ void HUD::drawHUD(Player &player, STATE_GAME gameMode, bool showPortalMessage, b
     }
     drawText(centerX - 80, windowHeight - 110, buffer, 14);
 
-    // Desenhar conexões e nós da árvore
     drawSkillTreeConnections(skillN);
     drawSkillTreeNodes(skillN);
     drawSkillTooltip(skillTooltip);
 
-    // Instruções
     glColor3f(0.9f, 0.9f, 0.9f);
     drawText(centerX - 100, 80, "Pressione 'K' para voltar ao jogo", 12);
     drawText(centerX - 140, 60, "Use o mouse para selecionar habilidades", 12);
 
-    // Restaurar estado OpenGL
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
@@ -252,11 +224,10 @@ void HUD::calculateSkillTreeLayout(std::vector<SkillNode> &skillNodes)
 
     const float centerX = windowWidth / 2.0f;
     const float centerY = windowHeight / 2.0f;
-    const float baseRadius = 32.0f;  // Aumentado para melhor visualização
-    const float nodeSpacing = 160.0f; // Aumentado para melhor separação
+    const float baseRadius = 32.0f; 
+    const float nodeSpacing = 160.0f; 
 
-    // Definir posições das habilidades primárias (nível 1)
-    const float angles[4] = {0, 90, 180, 270}; // Em graus
+    const float angles[4] = {0, 90, 180, 270}; 
     for (int i = 0; i < 4; i++)
     {
         const float angleRad = angles[i] * M_PI / 180.0f;
@@ -1265,10 +1236,10 @@ void HUD::renderizarMenuConfiguracoes(Volume &volume)
     const int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
     const int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
 
-    const float backgorund_color[4] = {0.03f, 0.08f, 0.15f, 0.95f}; // Azul muito escuro para fundo
-    const float button_color[4] = {0.08f, 0.15f, 0.25f, 0.9f};      // Azul escuro para botões
-    const float hover_color[4] = {0.15f, 0.25f, 0.4f, 0.85f};       // Azul médio para hover
-    const float light_color[4] = {0.3f, 0.5f, 0.8f, 0.85f};         // Azul claro para destaque
+    const float backgorund_color[4] = {0.03f, 0.08f, 0.15f, 0.95f};
+    const float button_color[4] = {0.08f, 0.15f, 0.25f, 0.9f};   
+    const float hover_color[4] = {0.15f, 0.25f, 0.4f, 0.85f};     
+    const float light_color[4] = {0.3f, 0.5f, 0.8f, 0.85f};       
 
     const float painelLargura = windowWidth * 0.6f;
     const float painelAltura = windowHeight * 0.7f;
@@ -1287,10 +1258,10 @@ void HUD::renderizarMenuConfiguracoes(Volume &volume)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glBegin(GL_QUADS);
-    glColor4f(0.02f, 0.06f, 0.12f, 0.92f); // Azul muito escuro (quase preto) no fundo
+    glColor4f(0.02f, 0.06f, 0.12f, 0.92f);
     glVertex2f(painelX, painelY);
     glVertex2f(painelX + painelLargura, painelY);
-    glColor4f(0.08f, 0.16f, 0.28f, 0.92f); // Azul escuro no topo
+    glColor4f(0.08f, 0.16f, 0.28f, 0.92f); 
     glVertex2f(painelX + painelLargura, painelY + painelAltura);
     glVertex2f(painelX, painelY + painelAltura);
     glEnd();
@@ -1319,7 +1290,7 @@ void HUD::renderizarMenuConfiguracoes(Volume &volume)
     struct AudioControl
     {
         std::string nome;
-        float valAtual; // Valor entre 0.0 e 1.0
+        float valAtual;
         ACTION_BUTTON acaoDiminuir;
         ACTION_BUTTON acaoAumentar;
     };
@@ -1337,11 +1308,10 @@ void HUD::renderizarMenuConfiguracoes(Volume &volume)
         glColor3f(0.7f, 0.8f, 1.0f);
         drawText(sliderStartX, posY + 10, controles[i].nome.c_str());
 
-        botoesMenu.push_back({"-", sliderStartX - buttonLargura - 10, posY - 5, buttonLargura, buttonAltura,
-                              button_color[0], button_color[1], button_color[2], false, controles[i].acaoDiminuir});
+        botoesMenu.push_back({"-", sliderStartX - buttonLargura - 10, posY - 5, buttonLargura, buttonAltura, button_color[0], button_color[1], button_color[2], false, controles[i].acaoDiminuir});
 
         glBegin(GL_QUADS);
-        glColor4f(0.04f, 0.08f, 0.15f, 0.8f); // Fundo do slider (azul muito escuro)
+        glColor4f(0.04f, 0.08f, 0.15f, 0.8f);
         glVertex2f(sliderStartX, posY);
         glVertex2f(sliderStartX + sliderLargura, posY);
         glVertex2f(sliderStartX + sliderLargura, posY + sliderAltura);
@@ -1356,8 +1326,7 @@ void HUD::renderizarMenuConfiguracoes(Volume &volume)
         glVertex2f(sliderStartX, posY + sliderAltura);
         glEnd();
 
-        botoesMenu.push_back({"+", sliderStartX + sliderLargura + 10, posY - 5, buttonLargura, buttonAltura,
-                              button_color[0], button_color[1], button_color[2], false, controles[i].acaoAumentar});
+        botoesMenu.push_back({"+", sliderStartX + sliderLargura + 10, posY - 5, buttonLargura, buttonAltura, button_color[0], button_color[1], button_color[2], false, controles[i].acaoAumentar});
 
         char percentText[10];
         sprintf(percentText, "%d%%", (int)(controles[i].valAtual * 100));
@@ -1367,8 +1336,7 @@ void HUD::renderizarMenuConfiguracoes(Volume &volume)
 
     float buttonBackWidth = 150.0f;
     float buttonBackHeight = 40.0f;
-    botoesMenu.push_back({"VOLTAR", centerX - buttonBackWidth / 2, painelY + 40, buttonBackWidth, buttonBackHeight,
-                          button_color[0], button_color[1], button_color[2], false, ACTION_BUTTON::NONE});
+    botoesMenu.push_back({"VOLTAR", centerX - buttonBackWidth / 2, painelY + 40, buttonBackWidth, buttonBackHeight,button_color[0], button_color[1], button_color[2], false, ACTION_BUTTON::NONE});
 
     for (size_t i = 0; i < botoesMenu.size(); ++i)
 {
@@ -1389,14 +1357,14 @@ void HUD::renderizarMenuConfiguracoes(Volume &volume)
     if (static_cast<int>(i) == hoveredButtonID)
     {
         glLineWidth(3.0f);
-        glColor3f(0.3f, 0.5f, 0.8f); // Cor da borda (azul claro)
+        glColor3f(0.3f, 0.5f, 0.8f); 
         glBegin(GL_LINE_LOOP);
         glVertex2f(botao.x - 3, botao.y - 3);
         glVertex2f(botao.x + botao.width + 3, botao.y - 3);
         glVertex2f(botao.x + botao.width + 3, botao.y + botao.height + 3);
         glVertex2f(botao.x - 3, botao.y + botao.height + 3);
         glEnd();
-        glLineWidth(1.0f); // Restaura a largura da linha
+        glLineWidth(1.0f); 
     }
 }
 

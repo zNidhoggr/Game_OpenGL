@@ -44,4 +44,4 @@ private:
     void renderizarTelaDesejaJogar();
 };
 
-#endif // HUD_HPP
+#endif

@@ -7,4 +7,4 @@ public:
     static void initLight();
 };
 
-#endif // LIGHT_HPP
+#endif

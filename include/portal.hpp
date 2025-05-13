@@ -22,4 +22,4 @@ public:
     float getTerrainHeight(float x, float z);
 };
 
-#endif // PORTAL_HPP
+#endif 

@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include "Skill.hpp" // Aqui a gente assume que Skill e SkillType tão definidos aqui
+#include "Skill.hpp" 
 
 class SkillTree {
 private:

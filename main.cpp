@@ -21,6 +21,8 @@
 #include "game.cpp"
 #include "Boss.cpp"
 #include "gameObject.cpp"
+#include "textureLoader.cpp"
+#include "light.cpp"
 
 const int DUNGEON_WIDTH = 10;
 const int DUNGEON_HEIGHT = 10;
@@ -36,6 +38,27 @@ std::vector<TrailPoint> trailCurvePoints;
 std::vector<TrailPoint> trailClearings;
 std::vector<TrailPoint> trailPoints;
 std::vector<GrassPatch> grassPatches;
+
+unsigned int texturaJogador;
+unsigned int texturaGrama;
+unsigned int texturaPortal;
+unsigned int texturaParaside;
+unsigned int texturaBoss;
+unsigned int texturaDungeon3;
+unsigned int texturaDungeon2;
+unsigned int texturaDungeon1;
+unsigned int textureWood;
+unsigned int textureTrunk;
+unsigned int textureRock;
+unsigned int textureItem;
+unsigned int textureWall;
+unsigned int textureLeaves;
+unsigned int textureHouseWall;
+unsigned int textureRoof;
+unsigned int textureDoor;
+unsigned int textureBrick;
+unsigned int texturaJogadorCabeca;
+unsigned int textureFloor;
 
 void display() { Game::displayCallback(); }
 void reshape(int w, int h) { Game::reshapeCallback(w, h); }
@@ -53,16 +76,31 @@ void init()
     glClearColor(0.4f, 0.6f, 0.9f, 1.0f);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_COLOR_MATERIAL);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
 
-    GLfloat light_position[] = {0.0f, 10.0f, 0.0f, 1.0f};
-    GLfloat light_ambient[] = {0.2f, 0.2f, 0.2f, 1.0f};
-    GLfloat light_diffuse[] = {0.8f, 0.8f, 0.8f, 1.0f};
+    Light::initLight();
 
-    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
+    texturaJogador = loadTexture("src/textures/player.png");
+    texturaJogadorCabeca = loadTexture("src/textures/player.png");
+    texturaGrama = loadTexture("src/textures/grass.png");
+    texturaPortal = loadTexture("src/textures/portal.png");
+    texturaParaside = loadTexture("src/textures/grass.png");
+    texturaBoss = loadTexture("src/textures/dungeon.png");
+    texturaDungeon3 = loadTexture("src/textures/dungeon.png");
+    texturaDungeon2 = loadTexture("src/textures/dungeon.png");
+    texturaDungeon1 = loadTexture("src/textures/dungeon.png");
+
+    textureWood = loadTexture("src/textures/wood.png");
+    textureTrunk = loadTexture("src/textures/wood.png");
+    textureRock = loadTexture("src/textures/rock.png");
+    textureItem = loadTexture("src/textures/gold.png");
+    textureWall = loadTexture("src/textures/wall.png");
+    textureLeaves = loadTexture("src/textures/wall.png");
+    textureHouseWall = loadTexture("src/textures/house_wall.png");
+    textureRoof = loadTexture("src/textures/roof.png");
+
+    textureDoor = loadTexture("src/textures/door.png");
+    textureBrick = loadTexture("src/textures/wall.png");
+    
     srand(static_cast<unsigned int>(time(nullptr)));
     Game::initCallback();
 }
@@ -79,7 +117,6 @@ int main(int argc, char **argv)
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
     glutKeyboardFunc(keyboard);
-    // glutSetCursor(GLUT_CURSOR_NONE);
     glutSpecialFunc(specialKeys);
     glutKeyboardUpFunc(keyboardUp);
     glutTimerFunc(16, update, 0);

@@ -7,7 +7,7 @@ GameObject::GameObject(float x, float y, float z, float size, ObjectType type, b
 GameObject::~GameObject() {}
 
 void GameObject::update(float deltaTime) {
-    // implementação vazia padrão
+
 }
 
 bool GameObject::checkCollision(const GameObject& other) const {
@@ -17,7 +17,6 @@ bool GameObject::checkCollision(const GameObject& other) const {
     return distance < (size + other.size);
 }
 
-// Getters
 float GameObject::getX() const { return x; }
 float GameObject::getY() const { return y; }
 float GameObject::getZ() const { return z; }
@@ -26,7 +25,6 @@ ObjectType GameObject::getType() const { return type; }
 bool GameObject::isActive() const { return active; }
 bool GameObject::isCollidable() const { return collidable; }
 
-// Setters
 void GameObject::setPosition(float newX, float newY, float newZ) {
     x = newX;
     y = newY;

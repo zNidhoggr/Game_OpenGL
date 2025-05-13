@@ -1,5 +1,5 @@
 #include "camera.hpp"
-#include <cmath> // Para M_PI e funções trigonométricas
+#include <cmath> 
 
 Camera::Camera()
     : distance(5.0f), height(2.0f), zoom(50.f), topDownView(false), sensitivity(0.2f), rotationX(0.0f), rotationY(0.0f), panSpeed(0.05f) {}
@@ -24,40 +24,30 @@ void Camera::applyView(const Player &player)
     }
 }
 
-void Camera::toggleTopDown(STATE_GAME &gameMode)
-{
+void Camera::toggleTopDown(STATE_GAME &gameMode){
     gameMode = (gameMode == STATE_GAME::TOP_VIEW_MAP) ? STATE_GAME::PLAYING_EXPLORER : STATE_GAME::TOP_VIEW_MAP;
     topDownView = !topDownView;
 }
 
-void Camera::adjustHeight(int deltaY)
-{
+void Camera::adjustHeight(int deltaY){
     height -= deltaY * sensitivity * 0.1f;
-    if (height < 0.5f)
-        height = 0.5f;
-    if (height > 5.0f)
-        height = 5.0f;
+    if (height < 0.5f) height = 0.5f;
+    if (height > 5.0f) height = 5.0f;
 }
 
-void Camera::adjustHeightByKey(bool up)
-{
-    if (up)
-        height -= 0.1f;
-    else
-    {
+void Camera::adjustHeightByKey(bool up){
+    if (up) height -= 0.1f;
+    else{
         height += 0.1f;
-        if (height < 0.5f)
-            height = 0.5f;
+        if (height < 0.5f) height = 0.5f;
     }
 }
 
-float Camera::getSensitivity() const
-{
+float Camera::getSensitivity() const {
     return sensitivity;
 }
 
-void Camera::updatePanWithMouse(int deltaX, int deltaY)
-{
+void Camera::updatePanWithMouse(int deltaX, int deltaY){
     posX += deltaX * panSpeed;
     posZ += deltaY * panSpeed;
 
@@ -66,15 +56,11 @@ void Camera::updatePanWithMouse(int deltaX, int deltaY)
     float minZ = -30.0f;
     float maxZ = 30.0f;
 
-    if (posX < minX) posX = minX;
-    else if (posX > maxX) posX = maxX;
-
-    if (posZ < minZ) posZ = minZ;
-    else if (posZ > maxZ) posZ = maxZ;
+    if (posX < minX) posX = minX; else if (posX > maxX) posX = maxX;
+    if (posZ < minZ) posZ = minZ; else if (posZ > maxZ) posZ = maxZ;
 }
 
-void Camera::updateRotation(float deltaX, float deltaY)
-{
+void Camera::updateRotation(float deltaX, float deltaY){
     rotationX += deltaY * sensitivity;
     rotationY += deltaX * sensitivity;
 
@@ -82,8 +68,7 @@ void Camera::updateRotation(float deltaX, float deltaY)
     if (rotationX < -89.0f) rotationX = -89.0f;
 }
 
-void Camera::updateZoom(int scrollDirection)
-{
+void Camera::updateZoom(int scrollDirection){
     const float zoomSpeed = 0.2f;
     const float minZoom = 2.0f;
     const float maxZoom = 20.0f;
@@ -94,8 +79,7 @@ void Camera::updateZoom(int scrollDirection)
     if (distance > maxZoom) distance = maxZoom;
 }
 
-void Camera::updateTopDownZoom(int direction)
-{
+void Camera::updateTopDownZoom(int direction){
     const float zoomSpeed = 0.5f;
     const float minHeight = 20.0f;
     const float maxHeight = 60.0f;
@@ -106,8 +90,6 @@ void Camera::updateTopDownZoom(int direction)
     if (zoom > maxHeight) zoom = maxHeight;
 }
 
-// Implementação dos Getters e Setters
-
 float Camera::getPosX() const { return posX; }
 float Camera::getPosZ() const { return posZ; }
 float Camera::getPanSpeed() const { return panSpeed; }
@@ -117,7 +99,6 @@ float Camera::getZoom() const { return zoom; }
 float Camera::getDistance() const { return distance; }
 float Camera::getHeight() const { return height; }
 bool Camera::isTopDownView() const { return topDownView; }
-
 void Camera::setPosX(float x) { posX = x; }
 void Camera::setPosZ(float z) { posZ = z; }
 void Camera::setPanSpeed(float speed) { panSpeed = speed; }

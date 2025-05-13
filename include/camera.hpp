@@ -7,18 +7,18 @@
 class Camera
 {
 private:
-    float distance;    // Distância da câmera ao jogador
-    float height;      // Altura relativa da câmera
-    bool topDownView;  // Visão superior ativada
-    float sensitivity; // Sensibilidade do mouse
-    float zoom;        // Zoom da câmera
+    float distance;   
+    float height;     
+    bool topDownView;  
+    float sensitivity; 
+    float zoom;        
 
 public:
     float posX = 0.0f;
     float posZ = 0.0f;
     float panSpeed = 0.1f;
     float rotationY = 0.0f;
-    float rotationX = 0.0f; // Ângulo de rotação em torno do jogador
+    float rotationX = 0.0f;
 
     Camera();
 
@@ -32,9 +32,8 @@ public:
     void updateTopDownZoom(int direction);
     void updateRotationJoystick(float joystickX, float joystickY);
 
-    void updateRotation(float deltaX, float deltaY); // Função de rotação da câmera
+    void updateRotation(float deltaX, float deltaY);
 
-    // Getters
     float getPosX() const;
     float getPosZ() const;
     float getPanSpeed() const;
@@ -46,7 +45,6 @@ public:
     bool isTopDownView() const;
     float getSensitivity() const;
 
-    // Setters
     void setPosX(float x);
     void setPosZ(float z);
     void setPanSpeed(float speed);

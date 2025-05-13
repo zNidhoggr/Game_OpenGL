@@ -66,7 +66,6 @@ public:
     void levelUp();
     void handleMovement();
 
-    // Getters
     float getRotY() const;
     float getHealth() const;
     float getMaxHealth() const;
@@ -80,26 +79,14 @@ public:
 
     void reset();
 
-    bool getIsRunning(){
-        return running;
-    }
-
-    void toggleRunning(){
-        running = running? false: true;
-    }
-
-    void setIsRunnung(bool newState){
-        running = newState;
-    }
-
-    void setHealth(float newState){
-        health = newState;
-    }
+    bool getIsRunning(){ return running; }
+    void toggleRunning() { running = running? false: true; }
+    void setIsRunnung(bool newState) {  running = newState; }
+    void setHealth(float newState) { health = newState; }
 
     SkillTree &getSkillTree();
     float speed;
-
     void setSpeed(float movementSpeed);
 };
 
-#endif // PLAYER_HPP
+#endif 

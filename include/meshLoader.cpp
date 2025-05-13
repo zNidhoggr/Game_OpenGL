@@ -23,27 +23,19 @@ bool MeshLoader::loadModel(const char *caminhoObj, const char *caminhoMtl,
 
     bool carregado = false;
 
-    // Verifica se o caminho do arquivo foi fornecido (não é nulo)
     switch (tipoArquivo)
     {
     case ModelType::OBJ:
-        if (caminhoObj != nullptr)  // Verifica se o caminho do arquivo OBJ é válido
-        {
+        if (caminhoObj != nullptr) {
             carregado = modelo.loadOBJ(caminhoObj, caminhoMtl);
-        }
-        else
-        {
+        }else{
             std::cerr << "Caminho do arquivo OBJ não fornecido!" << std::endl;
             return false;
         }
         break;
     case ModelType::GLB:
-        // Aqui você chamaria a função para carregar GLB
-        // if (caminhoObj != nullptr) { carregado = modelo.loadGLB(caminhoObj); }
         break;
     case ModelType::GLTF:
-        // Aqui você chamaria a função para carregar GLTF
-        // if (caminhoObj != nullptr) { carregado = modelo.loadGLTF(caminhoObj); }
         break;
     case ModelType::CUSTOM:
         break;
@@ -52,95 +44,73 @@ bool MeshLoader::loadModel(const char *caminhoObj, const char *caminhoMtl,
         return false;
     }
 
-    if (carregado)
-    {
+    if (carregado){
         modelos.push_back(std::move(modelo));
         return true;
     }
 
     return false;
 }
-void MeshLoader::drawAll()
-{
-    for (auto &modelo : modelos)
-    {
+void MeshLoader::drawAll(){
+    for (auto &modelo : modelos){
         modelo.draw();
     }
 }
 
-void MeshLoader::drawForId(int id)
-{
+void MeshLoader::drawForId(int id){
     if (id < 0 || id >= modelos.size()) return;
     modelos[id].draw();
 }
 
-// Atualização de Translação por Coordenada
-void MeshLoader::updateModelTranslationXById(int id, float x)
-{
+void MeshLoader::updateModelTranslationXById(int id, float x){
     modelos[id].setTranslation(x, modelos[id].getTranslation().y, modelos[id].getTranslation().z);
 }
 
-void MeshLoader::updateModelTranslationYById(int id, float y)
-{
+void MeshLoader::updateModelTranslationYById(int id, float y){
     modelos[id].setTranslation(modelos[id].getTranslation().x, y, modelos[id].getTranslation().z);
 }
 
-void MeshLoader::updateModelTranslationZById(int id, float z)
-{
+void MeshLoader::updateModelTranslationZById(int id, float z){
     modelos[id].setTranslation(modelos[id].getTranslation().x, modelos[id].getTranslation().y, z);
 }
 
-// Atualização de Rotação por Coordenada
-void MeshLoader::updateModelRotationXById(int id, float x)
-{
+void MeshLoader::updateModelRotationXById(int id, float x){
     modelos[id].setRotation( modelos[id].getRotation().angulo,x, modelos[id].getRotation().y, modelos[id].getRotation().z);
 }
 
-void MeshLoader::updateModelRotationYById(int id, float y)
-{
-    if (id < 0 || id >= modelos.size())
-        return;
+void MeshLoader::updateModelRotationYById(int id, float y){
+    if (id < 0 || id >= modelos.size()) return;
     modelos[id].setRotation(modelos[id].getRotation().angulo, modelos[id].getRotation().x, y, modelos[id].getRotation().z);
 }
 
-void MeshLoader::updateModelRotationZById(int id, float z)
-{
+void MeshLoader::updateModelRotationZById(int id, float z){
     modelos[id].setRotation( modelos[id].getRotation().angulo,modelos[id].getRotation().x, modelos[id].getRotation().y, z);
 }
 
-void MeshLoader::updateModelRotationAngleById(int id, float angle)
-{
+void MeshLoader::updateModelRotationAngleById(int id, float angle){
     modelos[id].setRotation(angle,modelos[id].getRotation().x, modelos[id].getRotation().y, modelos[id].getRotation().z);
 }
 
-// Atualização de Escala por Coordenada
-void MeshLoader::updateModelScaleXById(int id, float x)
-{
+void MeshLoader::updateModelScaleXById(int id, float x){
     modelos[id].setScale(x, modelos[id].getScale().y, modelos[id].getScale().z);
 }
 
-void MeshLoader::updateModelScaleYById(int id, float y)
-{
+void MeshLoader::updateModelScaleYById(int id, float y){
     modelos[id].setScale(modelos[id].getScale().x, y, modelos[id].getScale().z);
 }
 
-void MeshLoader::updateModelScaleZById(int id, float z)
-{
+void MeshLoader::updateModelScaleZById(int id, float z){
     modelos[id].setScale(modelos[id].getScale().x, modelos[id].getScale().y, z);
 }
 
-// Atualização de Cor por Componente
-void MeshLoader::updateModelColorRById(int id, float r)
-{
+void MeshLoader::updateModelColorRById(int id, float r){
     modelos[id].setColor(r, modelos[id].getColor().g, modelos[id].getColor().b);
 }
 
-void MeshLoader::updateModelColorGById(int id, float g)
-{
+void MeshLoader::updateModelColorGById(int id, float g){
     modelos[id].setColor(modelos[id].getColor().r, g, modelos[id].getColor().b);
 }
 
-void MeshLoader::updateModelColorBById(int id, float b)
-{
+void MeshLoader::updateModelColorBById(int id, float b){
     modelos[id].setColor(modelos[id].getColor().r, modelos[id].getColor().g, b);
 }
