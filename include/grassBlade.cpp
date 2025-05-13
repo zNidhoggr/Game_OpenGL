@@ -1,43 +1,50 @@
+
 #include "grassBlade.hpp"
 
-GrassBlade::GrassBlade(float x, float y, float z)
-    : GameObject(x, y, z, 0.1f, ObjectType::GRASS, false) {}
+GrassBlade::GrassBlade(float x, float y, float z) 
+    : GameObject(x, y, z, 0.1f, ObjectType::GRASS, false) {
+}
 
 void GrassBlade::draw() {
     glPushMatrix();
     glTranslatef(x, y, z);
-
-    float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
-    float sway = sin(time * 2.0f + x * 0.5f + z * 0.5f) * 10.0f;
-
+    float sway = calculateSway();
     glRotatef(sway, 0.0f, 0.0f, 1.0f);
+    setupMaterial();
+    glBegin(GL_TRIANGLES);
+    for (int i = 0; i < BLADE_SEGMENTS; ++i) {
+        drawBladeSegment(i);
+    }
+    glEnd();
+    
+    glPopMatrix();
+}
 
-    GLfloat ambient[]  = {0.0f, 0.2f, 0.0f, 1.0f};
-    GLfloat diffuse[]  = {0.2f, 0.8f, 0.2f, 1.0f};
-    GLfloat specular[] = {0.0f, 0.05f, 0.0f, 1.0f};
-    GLfloat shininess  = 5.0f;
+float GrassBlade::calculateSway() const {
+    float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+    return sin(time * SWAY_SPEED + x * 0.5f + z * 0.5f) * SWAY_AMOUNT;
+}
 
+void GrassBlade::setupMaterial() const {
+    const GLfloat ambient[4] = {0.0f, 0.3f, 0.0f, 1.0f};
+    const GLfloat diffuse[4] = {0.4f, 0.7f, 0.4f, 1.0f};
+    const GLfloat specular[4] = {0.0f, 0.1f, 0.0f, 1.0f};
+    const GLfloat shininess = 1.0f;
+    
     glDisable(GL_COLOR_MATERIAL);
     glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
     glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
     glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
     glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+}
 
-    glBegin(GL_TRIANGLES);
-
-    float h = 0.3f;
-    float w = 0.02f;
-
-    for (int i = 0; i < 3; ++i) {
-        float angle = i * 60.0f * M_PI / 180.0f;
-        float dx = std::cos(angle) * w;
-        float dz = std::sin(angle) * w;
-
-        glVertex3f(0.0f, 0.0f, 0.0f);
-        glVertex3f(dx, h, dz);
-        glVertex3f(-dx, 0.0f, -dz);
-    }
-
-    glEnd();
-    glPopMatrix();
+void GrassBlade::drawBladeSegment(int segmentIndex) const {
+    float angle = segmentIndex * 60.0f * M_PI / 180.0f;
+    
+    float dx = std::cos(angle) * WIDTH;
+    float dz = std::sin(angle) * WIDTH;
+    
+    glVertex3f(0.0f, 0.0f, 0.0f);    
+    glVertex3f(dx, HEIGHT, dz);     
+    glVertex3f(-dx, 0.0f, -dz);  
 }

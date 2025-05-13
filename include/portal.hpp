@@ -18,8 +18,8 @@ public:
 
     void draw() override;
     bool playerIsNearby(const Player& player) const;
-    void teleport(Player& player, Game& game);
+    void teleport(Player &player, Game &game);
     float getTerrainHeight(float x, float z);
 };
 
-#endif // PORTAL_HPP
+#endif 

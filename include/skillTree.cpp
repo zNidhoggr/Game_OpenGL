@@ -62,3 +62,13 @@ float SkillTree::getSkillValue(SkillType type) const {
     }
     return total;
 }
+
+void SkillTree::reset()
+{
+    skillPoints = 0;
+
+    for (auto &skill : skills)
+    {
+        skill->reset();
+    }
+}

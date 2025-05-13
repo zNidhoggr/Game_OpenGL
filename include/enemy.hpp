@@ -18,24 +18,26 @@ private:
     float attackTimer;
     float detectionRange;
     bool isCombatActive;
+    bool experienceGiven = false;
 
 public:
     Enemy(float x, float y, float z, float size, int level);
-
     void update(float deltaTime) override;
     void moveTowardsPlayer(const Player& player, float deltaTime);
     bool attackPlayer(Player& player, float deltaTime);
-    void takeDamage(float amount);
+    void takeDamage(float amount, const AttackType& attack);
     void draw() override;
     void drawHealthBar();
     float getTerrainHeight(float x, float z);
-
-    // Getters
+    bool isExperienceGiven() const;
+    void markExperienceAsGiven();
     float getHealth() const;
     float getMaxHealth() const;
     int getLevel() const;
     bool isInCombat() const;
     float getExperienceValue() const;
+    float getDetectionRange(){ return detectionRange; }
+    void setDetectionRange(float newState){  detectionRange = newState;}
 };
 
-#endif // ENEMY_HPP
+#endif 

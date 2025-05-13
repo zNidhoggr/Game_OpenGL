@@ -1,3 +1,15 @@
+# Ignora todos os arquivos binários executáveis gerados pelo compilador
+*.exe
+
+# Ignora a pasta 'aulas' na raiz do projeto
+/aulas/
+
+# Ignora todos os arquivos da pasta .vscode
+.vscode/
+
+# (Opcional) Se quiser manter algumas configurações específicas, você pode negar certos arquivos:
+!.vscode/c_cpp_properties.json
+
 *.exe
 /aulas
 /.vscode

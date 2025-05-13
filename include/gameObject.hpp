@@ -1,16 +1,14 @@
 #pragma once
 
-#include <cmath> // pra usar std::sqrt
-
-// Enum que representa o tipo do objeto (define tu mesmo em outro lugar)
+#include <cmath> 
 
 class GameObject {
 protected:
-    float x, y, z;       // Posição
-    float size;          // Tamanho
-    ObjectType type;     // Tipo de objeto
-    bool active;         // Se está ativo no mundo
-    bool collidable;     // Se colide com o jogador
+    float x, y, z;      
+    float size;       
+    ObjectType type;     
+    bool active;      
+    bool collidable;     
 
 public:
     GameObject(float x, float y, float z, float size, ObjectType type, bool collidable = true);
@@ -20,8 +18,6 @@ public:
     virtual void draw() = 0;
 
     bool checkCollision(const GameObject& other) const;
-
-    // Getters e setters
     float getX() const;
     float getY() const;
     float getZ() const;

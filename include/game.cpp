@@ -1,25 +1,19 @@
-
-#include <GL/glut.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include <ctime>
-#include <cstdlib>
-#include <string>
-#include <map>
-#include <memory>
-#include <algorithm>
 #include "game.hpp"
 
-const float Game::WORLD_SIZE = 20.0f;
+const float Game::WORLD_SIZE = 25.0f;
+extern unsigned int texturaGrama;
+extern unsigned int texturaParaside;
+extern unsigned int texturaBoss;
+extern unsigned int texturaDungeon3;
+extern unsigned int texturaDungeon2;
+extern unsigned int texturaDungeon1;
 
 Game::Game() : player(0.0f, 0.5f, 0.0f),
                cameraDistance(5.0f),
+               hud(player),
                cameraHeight(2.0f),
                cameraAngle(0.0f),
-               gameMode(0),
+               gameMode(STATE_GAME::PLAYING_EXPLORER),
                currentMap(MapType::MAIN),
                lastFrameTime(0.0f),
                deltaTime(0.0f),
@@ -32,24 +26,37 @@ Game::Game() : player(0.0f, 0.5f, 0.0f),
                mouseSensitivity(0.2f),
                topDownView(false)
 {
-    // Inicializar cores do céu
     skyColor[0] = 0.4f;
     skyColor[1] = 0.6f;
     skyColor[2] = 0.9f;
 
-    // Inicializar tooltip
     skillTooltip.visible = false;
     skillTooltip.showConfirmation = false;
     skillTooltip.width = 250.0f;
     skillTooltip.height = 150.0f;
 
     initObjects();
+    loader.loadModel("./src/objs/espada.obj", nullptr,
+                     {getPlayer().getX(), getPlayer().getY(), getPlayer().getZ() - 0.4f},
+                     {270.0f, 1.0f, 0.0f, 0.0f},
+                     {0.03f, 0.03f, 0.03f},
+                     {0.1f, 0.4f, 0.9f},
+                     {0.2f, 0.2f, 0.2f},
+                     {0.0f, 0.2f, 1.0f},
+                     {0.001f, 0.001f, 0.01f},
+                     1.0f, ModelType::OBJ);
+    loader.loadModel("./src/objs/cat_meme.obj", "./src/objs/maxwell_the_cat_dingus.mtl",
+                     {getPlayer().getX() + 4.0f, getPlayer().getY(), getPlayer().getZ() + 4.0f},
+                     {0.0f, 0.0f, 0.0f, 0.0f},
+                     {0.05f, 0.05f, 0.05f},
+                     {-1.0f, -1.0f, -1.0f},
+                     {-1.0f, -1.0f, -1.0f},
+                     {-1.0f, -1.0f, -1.0f},
+                     {-1.0f, -1.0f, -1.0f},
+                     0.0f, ModelType::OBJ);
 }
 
-float Game::lerp(float a, float b, float t)
-{
-    return a + (b - a) * t;
-}
+float Game::lerp(float a, float b, float t) { return a + (b - a) * t; }
 
 bool Game::isUnderWater(float x, float z)
 {
@@ -58,18 +65,21 @@ bool Game::isUnderWater(float x, float z)
         {-7.0f, -3.0f},
         {8.0f, -6.0f},
         {-4.0f, 7.0f}};
+
     float radius = 3.5f;
 
     for (const auto &center : lakeCenters)
     {
+
         float cx = center.first;
         float cz = center.second;
-
         float dist = std::sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz));
+
         if (dist < radius)
         {
-            // Calcular altura da borda
+
             float maxEdgeHeight = -1000.0f;
+
             for (int angle = 0; angle < 360; angle += 10)
             {
                 float rad = angle * M_PI / 180.0f;
@@ -82,6 +92,7 @@ bool Game::isUnderWater(float x, float z)
 
             float waterHeight = maxEdgeHeight - 0.02f;
             float terrainY = getTerrainHeight(x, z);
+
             if (terrainY < waterHeight)
                 return true;
         }
@@ -101,13 +112,12 @@ bool Game::isInTrail(float x, float z)
             return true;
     }
 
-    // Verificar clareiras
     for (const auto &c : trailClearings)
     {
         float dx = x - c.x;
         float dz = z - c.z;
         float distSq = dx * dx + dz * dz;
-        if (distSq < 4.0f * 4.0f) // raio das clareiras
+        if (distSq < 4.0f * 4.0f)
             return true;
     }
 
@@ -118,16 +128,18 @@ bool Game::hasGrass(float x, float z)
 {
     if (isInTrail(x, z))
     {
-        return false; // Sem grama na trilha
+        return false;
     }
 
     for (const GrassPatch &patch : grassPatches)
     {
+
         float dx = x - patch.x;
         float dz = z - patch.z;
+
         if (std::sqrt(dx * dx + dz * dz) < patch.radius)
         {
-            return true; // Dentro de alguma mancha de grama
+            return true;
         }
     }
 
@@ -136,8 +148,8 @@ bool Game::hasGrass(float x, float z)
 
 void Game::generateBranch(TrailPoint origin, float baseDirection, float safeMargin)
 {
-    float direction = baseDirection + ((rand() % 2 == 0) ? M_PI / 3 : -M_PI / 3); // 60° esquerda ou direita
-    int branchLength = 8 + rand() % 5;                                            // comprimento variável
+    float direction = baseDirection + ((rand() % 2 == 0) ? M_PI / 3 : -M_PI / 3);
+    int branchLength = 8 + rand() % 5;
 
     TrailPoint current = origin;
 
@@ -153,10 +165,11 @@ void Game::generateBranch(TrailPoint origin, float baseDirection, float safeMarg
             break;
 
         trailCurvePoints.push_back(next);
+
         if (i % 4 == 0)
             trailClearings.push_back(next);
 
-        direction += sin(i * 0.3f) * (M_PI / 18); // zigue-zague leve
+        direction += sin(i * 0.3f) * (M_PI / 18);
         current = next;
     }
 }
@@ -168,8 +181,8 @@ void Game::generateNaturalTrail(float worldSize)
 
     float minX = -worldSize;
     float maxX = worldSize;
-    float startZ = (rand() % 2000 / 1000.0f - 1.0f) * worldSize; // aleatório entre -worldSize e worldSize
-    float endZ = (rand() % 2000 / 1000.0f - 1.0f) * worldSize;
+    float startZ = (rand() % 2000 / 100.0f - 1.0f) * worldSize;
+    float endZ = (rand() % 2000 / 100.0f - 1.0f) * worldSize;
 
     float step = 1.0f;
     float offset = 0.0f;
@@ -177,6 +190,7 @@ void Game::generateNaturalTrail(float worldSize)
 
     for (float x = minX; x <= maxX; x += step)
     {
+
         float t = (x - minX) / (maxX - minX);
         float z = (1.0f - t) * startZ + t * endZ + std::sin(offset + t * 10.0f) * curveAmplitude;
 
@@ -201,17 +215,14 @@ void Game::loadMainMap()
     currentMap = MapType::MAIN;
     gameObjects.clear();
 
-    // Céu azul
     skyColor[0] = 0.4f;
     skyColor[1] = 0.7f;
     skyColor[2] = 1.0f;
 
-    // Jogador no centro
     float x = 0.0f, z = 0.0f;
     float y = getTerrainHeight(x, z) + 0.3f;
     player.setPosition(x, y, z);
 
-    // Exemplo de árvores, inimigos, etc.
     for (int i = 0; i < 10; i++)
     {
         float ox = rand() % 20 - 10;
@@ -220,29 +231,216 @@ void Game::loadMainMap()
         gameObjects.push_back(std::make_unique<StaticObject>(ox, oy, oz, 0.4f, ObjectType::TREE, 0.3f, 0.7f, 0.2f));
     }
 
-    // Adiciona o portal para a dungeon
+    float worldX = (DUNGEON_WIDTH / 2) * 5.0f;
+    float worldZ = (DUNGEON_HEIGHT / 2) * 5.0f;
+
     float px = 8.0f, pz = -5.0f;
     float py = getTerrainHeight(px, pz);
-    gameObjects.push_back(std::make_unique<Portal>(x, y + 0.2f, z, 0.4f, 0.0f, 0.0f, MapType::DUNGEON));
+    gameObjects.push_back(std::make_unique<Portal>(x, y + 0.2f, z, 0.4f, 0.0f, 0.0f, MapType::DUNGEON_ONE_LEVEL));
 }
 
 void Game::loadDungeonMap()
 {
-    currentMap = MapType::DUNGEON;
+    currentMap = MapType::DUNGEON_ONE_LEVEL;
     gameObjects.clear();
     skyColor[0] = 0.05f;
     skyColor[1] = 0.05f;
     skyColor[2] = 0.1f;
 
-    // Limpa grid
     for (int i = 0; i < DUNGEON_WIDTH; i++)
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
             dungeonGrid[i][j] = false;
 
-    // Gera um "caminho" simples entre salas conectadas
     int x = 5, z = 5;
     dungeonGrid[x][z] = true;
+
     for (int i = 0; i < 15; i++)
+    {
+        int dir = rand() % 4;
+
+        switch (dir)
+        {
+        case 0:
+            if (x > 1)
+                x--;
+            break;
+        case 1:
+            if (x < DUNGEON_WIDTH - 2)
+                x++;
+            break;
+        case 2:
+            if (z > 1)
+                z--;
+            break;
+        case 3:
+            if (z < DUNGEON_HEIGHT - 2)
+                z++;
+            break;
+        }
+
+        dungeonGrid[x][z] = true;
+    }
+
+    for (int i = 0; i < DUNGEON_WIDTH; i++)
+    {
+        for (int j = 0; j < DUNGEON_HEIGHT; j++)
+        {
+            if (dungeonGrid[i][j])
+            {
+
+                float worldX = (i - DUNGEON_WIDTH / 2) * 5.0f;
+                float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
+                float y = getTerrainHeight(worldX, worldZ);
+                float tileSize = 20.0f;
+
+                for (int i = 0; i < DUNGEON_WIDTH; ++i)
+                {
+                    for (int j = 0; j < DUNGEON_HEIGHT; ++j)
+                    {
+
+                        bool isEdge = (i == 0 || j == 0 || i == DUNGEON_WIDTH - 1 || j == DUNGEON_HEIGHT - 1);
+
+                        if (isEdge)
+                        {
+                            float wx = (i - DUNGEON_WIDTH / 2) * 10.0f;
+                            float wz = (j - DUNGEON_HEIGHT / 2) * 10.0f;
+                            float wy = getTerrainHeight(wx, wz);
+
+                            bool isPortalGap = (i == DUNGEON_WIDTH / 2 && j == DUNGEON_HEIGHT - 1);
+
+                            if (isPortalGap)
+                                continue;
+
+                            float scaleX = (j == 0 || j == DUNGEON_HEIGHT - 1) ? 2.5f : 0.5f;
+                            float scaleZ = (i == 0 || i == DUNGEON_WIDTH - 1) ? 2.5f : 0.5f;
+
+                            gameObjects.push_back(std::make_unique<StaticObject>(wx + 10.0f, wy + 10.0f, wz, 2.5f, WALL, scaleX, 1.0f, scaleZ));
+                        }
+                    }
+                }
+
+                if (rand() % 3 == 0)
+                {
+                    gameObjects.push_back(std::make_unique<StaticObject>(worldX + 1.0f, y, worldZ + 1.0f, 0.6f, ObjectType::WALL, 0.3f, 0.3f, 0.3f));
+                }
+                if (rand() % 4 == 0)
+                {
+                    gameObjects.push_back(std::make_unique<StaticObject>(worldX + 0.5f, y + 0.3f, worldZ + 0.5f, 0.3f, ITEM, 0.9f, 0.8f, 0.1f));
+                }
+                if (rand() % 2 == 0)
+                {
+                    gameObjects.push_back(std::make_unique<Enemy>(worldX, y + 0.3f, worldZ, 0.5f, 2));
+                    float worldX = (DUNGEON_WIDTH / 2) * 5.0f;
+                }
+            }
+        }
+    }
+
+    float exitX = 0.0f, exitZ = -20.0f;
+    float exitY = getTerrainHeight(exitX, exitZ);
+    gameObjects.push_back(std::make_unique<Portal>(exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::DUNGEON_TWO_LEVEL));
+    float startX = 0.0f, startZ = 0.0f;
+    float startY = getTerrainHeight(startX, startZ) + 0.3f;
+    player.setPosition(startX, startY, startZ);
+}
+
+void Game::loadDungeonMap_Level2()
+{
+    currentMap = MapType::DUNGEON_TWO_LEVEL;
+    gameObjects.clear();
+    skyColor[0] = 0.05f;
+    skyColor[1] = 0.05f;
+    skyColor[2] = 0.1f;
+
+    for (int i = 0; i < DUNGEON_WIDTH; i++)
+        for (int j = 0; j < DUNGEON_HEIGHT; j++)
+            dungeonGrid[i][j] = false;
+
+    int x = 5, z = 5;
+    dungeonGrid[x][z] = true;
+    for (int i = 0; i < 30; i++)
+    {
+
+        int dir = rand() % 4;
+
+        switch (dir)
+        {
+        case 0:
+            if (x > 1)
+                x--;
+            break;
+        case 1:
+            if (x < DUNGEON_WIDTH - 2)
+                x++;
+            break;
+        case 2:
+            if (z > 1)
+                z--;
+            break;
+        case 3:
+            if (z < DUNGEON_HEIGHT - 2)
+                z++;
+            break;
+        }
+
+        dungeonGrid[x][z] = true;
+
+        if (rand() % 3 == 0)
+        {
+            int branchX = x + (rand() % 3 - 1);
+            int branchZ = z + (rand() % 3 - 1);
+            if (branchX >= 0 && branchX < DUNGEON_WIDTH && branchZ >= 0 && branchZ < DUNGEON_HEIGHT)
+                dungeonGrid[branchX][branchZ] = true;
+        }
+    }
+
+    for (int i = 0; i < DUNGEON_WIDTH; i++)
+    {
+        for (int j = 0; j < DUNGEON_HEIGHT; j++)
+        {
+            if (dungeonGrid[i][j])
+            {
+                float worldX = (i - DUNGEON_WIDTH / 2) * 5.0f;
+                float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
+                float y = getTerrainHeight(worldX, worldZ);
+
+                if (rand() % 4 == 0)
+                {
+                    gameObjects.push_back(std::make_unique<StaticObject>(worldX, y, worldZ, 0.6f, ObjectType::WALL, 0.3f, 0.3f, 0.3f));
+                }
+                if (rand() % 1 == 0)
+                {
+                    gameObjects.push_back(std::make_unique<Enemy>(worldX, y + 0.3f, worldZ, 0.5f, 3));
+                }
+            }
+        }
+    }
+
+    float exitX = 0.0f, exitZ = -20.0f;
+    float exitY = getTerrainHeight(exitX, exitZ);
+    gameObjects.push_back(std::make_unique<Portal>(exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::DUNGEON_THREE_LEVEL));
+    float startX = 0.0f, startZ = 0.0f;
+    float startY = getTerrainHeight(startX, startZ) + 0.3f;
+    player.setPosition(startX, startY, startZ);
+}
+
+void Game::loadDungeonMap_Level3()
+{
+    currentMap = MapType::DUNGEON_THREE_LEVEL;
+
+    gameObjects.clear();
+    skyColor[0] = 0.05f;
+    skyColor[1] = 0.05f;
+    skyColor[2] = 0.1f;
+
+    for (int i = 0; i < DUNGEON_WIDTH; i++)
+        for (int j = 0; j < DUNGEON_HEIGHT; j++)
+            dungeonGrid[i][j] = false;
+
+    int x = 5, z = 5;
+    dungeonGrid[x][z] = true;
+
+    for (int i = 0; i < 20; i++)
     {
         int dir = rand() % 4;
         switch (dir)
@@ -267,7 +465,6 @@ void Game::loadDungeonMap()
         dungeonGrid[x][z] = true;
     }
 
-    // Cria as salas no mapa
     for (int i = 0; i < DUNGEON_WIDTH; i++)
     {
         for (int j = 0; j < DUNGEON_HEIGHT; j++)
@@ -278,97 +475,171 @@ void Game::loadDungeonMap()
                 float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
                 float y = getTerrainHeight(worldX, worldZ);
 
-                // Coloca muralhas em volta de salas que não têm vizinhos
-                float tileSize = 5.0f; // mesmo valor usado para espaçar salas
-
-                /*for (int d = 0; d < 4; ++d) {
-                    int dx = (d == 0) - (d == 1);
-                    int dz = (d == 2) - (d == 3);
-                    int ni = i + dx;
-                    int nj = j + dz;
-
-                    // se a sala vizinha não existe, coloca parede
-                    if (ni < 0 || nj < 0 || ni >= DUNGEON_WIDTH || nj >= DUNGEON_HEIGHT || !dungeonGrid[ni][nj]) {
-                        float wallX = worldX + dx * (tileSize / 2.0f);
-                        float wallZ = worldZ + dz * (tileSize / 2.0f);
-                        float wallY = getTerrainHeight(wallX, wallZ);
-
-                        float wallWidth = tileSize;      // Largura completa do espaço
-                        float wallHeight = 2.5f;
-                        float wallDepth = 0.5f;          // Parede fina
-
-                        gameObjects.push_back(std::make_unique<StaticObject>(
-                            wallX, wallY + wallHeight / 2.0f, wallZ, wallWidth, WALL, 0.4f, 0.4f, 0.4f
-                        ));
-                    }
-                }*/
-
-                // Muralha contínua ao redor da dungeon, exceto onde há o portal
-                for (int i = 0; i < DUNGEON_WIDTH; ++i)
-                {
-                    for (int j = 0; j < DUNGEON_HEIGHT; ++j)
-                    {
-                        bool isEdge = (i == 0 || j == 0 || i == DUNGEON_WIDTH - 1 || j == DUNGEON_HEIGHT - 1);
-                        if (isEdge)
-                        {
-                            float wx = (i - DUNGEON_WIDTH / 2) * 5.0f;
-                            float wz = (j - DUNGEON_HEIGHT / 2) * 5.0f;
-                            float wy = getTerrainHeight(wx, wz);
-
-                            // Exceção: deixar espaço para o portal
-                            bool isPortalGap = (i == DUNGEON_WIDTH / 2 && j == DUNGEON_HEIGHT - 1);
-                            if (isPortalGap)
-                                continue;
-
-                            // Define escalas diferentes para blocos horizontais e verticais
-                            float scaleX = (j == 0 || j == DUNGEON_HEIGHT - 1) ? 2.5f : 0.5f;
-                            float scaleZ = (i == 0 || i == DUNGEON_WIDTH - 1) ? 2.5f : 0.5f;
-
-                            gameObjects.push_back(std::make_unique<StaticObject>(
-                                wx, wy + 1.0f, wz, 2.5f, WALL, scaleX, 1.0f, scaleZ));
-                        }
-                    }
-                }
-
-                // Obstáculos ou paredes podem ser adicionados aqui
-                if (rand() % 3 == 0)
-                {
-                    gameObjects.push_back(std::make_unique<StaticObject>(
-                        worldX + 1.0f, y, worldZ + 1.0f, 0.6f, ObjectType::WALL,
-                        0.3f, 0.3f, 0.3f));
-                }
-
-                if (rand() % 4 == 0)
-                {
-                    gameObjects.push_back(std::make_unique<StaticObject>(
-                        worldX + 0.5f, y + 0.3f, worldZ + 0.5f, 0.3f, ITEM, 0.9f, 0.8f, 0.1f));
-                }
-
-                // Inimigos
                 if (rand() % 2 == 0)
                 {
-                    gameObjects.push_back(std::make_unique<Enemy>(
-                        worldX, y + 0.3f, worldZ, 0.5f, 2));
+                    gameObjects.push_back(std::make_unique<Enemy>(worldX, y + 0.3f, worldZ, 0.5f, 3));
+                }
+
+                if (rand() % 2 == 0) 
+                {
+                    gameObjects.push_back(std::make_unique<StaticObject>(worldX + 1.0f, y, worldZ + 1.0f, 0.6f, ObjectType::WALL, 0.3f, 0.3f, 0.3f));
                 }
             }
         }
     }
 
-    // Portal de volta ao mapa principal
+    float exitX = 0.0f, exitZ = -20.0f;
+    float exitY = getTerrainHeight(exitX, exitZ);
+    gameObjects.push_back(std::make_unique<Portal>(exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::BOSS));
+
+    float startX = 0.0f, startZ = 0.0f;
+    float startY = getTerrainHeight(startX, startZ) + 0.3f;
+    player.setPosition(startX, startY, startZ);
+}
+
+void Game::loadDungeonMap_Boss()
+{
+    currentMap = MapType::BOSS;
+    gameObjects.clear();
+    skyColor[0] = 0.1f;
+    skyColor[1] = 0.02f;
+    skyColor[2] = 0.02f;
+
+    for (int i = 0; i < DUNGEON_WIDTH; i++)
+        for (int j = 0; j < DUNGEON_HEIGHT; j++)
+            dungeonGrid[i][j] = false;
+
+    for (int i = 3; i < DUNGEON_WIDTH - 3; i++)
+        for (int j = 3; j < DUNGEON_HEIGHT - 3; j++)
+            dungeonGrid[i][j] = true;
+
+    for (int i = 0; i < DUNGEON_WIDTH; i++){
+        for (int j = 0; j < DUNGEON_HEIGHT; j++){
+            if (!dungeonGrid[i][j]) {
+                float worldX = (i - DUNGEON_WIDTH / 2) * 5.0f;
+                float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
+                float y = getTerrainHeight(worldX, worldZ);
+
+                gameObjects.push_back(std::make_unique<StaticObject>(
+                    worldX, y, worldZ, 0.6f, ObjectType::WALL, 0.3f, 0.3f, 0.3f));
+            }
+        }
+    }
+
+    float exitX = 0.0f, exitZ = -20.0f;
+    float exitY = getTerrainHeight(exitX, exitZ);
+    gameObjects.push_back(std::make_unique<Portal>(exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::PARASIDE));
+
+    gameObjects.push_back(std::unique_ptr<Boss>(std::make_unique<Boss>((DUNGEON_WIDTH / 2) * 1.0f, 1.0f, (DUNGEON_HEIGHT / 2) * 1.0f, 0.6f, 1)));
+
+    float startX = 0.0f, startZ = 10.0f;
+    float startY = getTerrainHeight(startX, startZ) + 0.3f;
+    player.setPosition(startX, startY, startZ);
+}
+
+void Game::loadParasideMap()
+{
+    currentMap = MapType::PARASIDE;
+    gameObjects.clear();
+
+    skyColor[0] = 0.7f;
+    skyColor[1] = 0.9f;
+    skyColor[2] = 1.0f;
+
+    for (int i = 0; i < DUNGEON_WIDTH; i++)
+        for (int j = 0; j < DUNGEON_HEIGHT; j++)
+            dungeonGrid[i][j] = false;
+
+    float centerX = 0.0f;
+    float centerZ = 0.0f;
+
+    for (int i = 2; i < DUNGEON_WIDTH - 2; i++)
+    {
+        for (int j = 2; j < DUNGEON_HEIGHT - 2; j++)
+        {
+            float worldX = (i - DUNGEON_WIDTH / 2) * 5.0f;
+            float worldZ = (j - DUNGEON_HEIGHT / 2) * 5.0f;
+            float distToCenter = sqrt(pow(worldX - centerX, 2) + pow(worldZ - centerZ, 2));
+
+            if (distToCenter < 5.0f)
+                continue;
+
+            float y = getTerrainHeight(worldX, worldZ);
+
+            if (rand() % 8 == 0)
+            {
+                gameObjects.push_back(std::make_unique<StaticObject>(
+                    worldX, y, worldZ, 1.0f, ObjectType::TREE, 0.8f, 3.5f, 0.8f));
+            }
+            else if (rand() % 15 == 0)
+            {
+                gameObjects.push_back(std::make_unique<StaticObject>(
+                    worldX, y, worldZ, 0.5f, ObjectType::ROCK, 0.7f, 0.5f, 0.7f));
+            }
+        }
+    }
+
+    float checkpointX = centerX;
+    float checkpointZ = centerZ;
+    float checkpointY = getTerrainHeight(checkpointX, checkpointZ);
+
+    float stoneDiameter = 0.5f;
+    int numStones = 8;
+    float radius = 1.5f;
+
+    for (int i = 0; i < numStones; i++)
+    {
+        float angle = i * (2 * M_PI / numStones);
+        float stoneX = checkpointX + radius * cos(angle);
+        float stoneZ = checkpointZ + radius * sin(angle);
+        float stoneY = getTerrainHeight(stoneX, stoneZ);
+
+        gameObjects.push_back(std::make_unique<StaticObject>(
+            stoneX, stoneY, stoneZ, 0.3f, ObjectType::ROCK, stoneDiameter, stoneDiameter * 0.7f, stoneDiameter));
+    }
+
+    gameObjects.push_back(std::make_unique<StaticObject>(
+        checkpointX, checkpointY, checkpointZ, 0.8f, ObjectType::BONFIRE, 1.0f, 1.0f, 1.0f));
+
+    for (int i = 0; i < 3; i++)
+    {
+        float angle = i * (2 * M_PI / 3);
+        float logX = checkpointX + 3.0f * cos(angle);
+        float logZ = checkpointZ + 3.0f * sin(angle);
+        float logY = getTerrainHeight(logX, logZ);
+
+        gameObjects.push_back(std::make_unique<StaticObject>(
+            logX, logY, logZ, 0.5f, ObjectType::ROCK, 1.5f, 0.5f, 0.5f));
+    }
+
     float exitX = 0.0f, exitZ = -20.0f;
     float exitY = getTerrainHeight(exitX, exitZ);
     gameObjects.push_back(std::make_unique<Portal>(
         exitX, exitY, exitZ, 0.4f, 0.0f, 0.0f, MapType::MAIN));
 
-    // Jogador no centro da dungeon
-    float startX = 0.0f, startZ = 0.0f;
+
+    for (int i = 1; i <= 5; i++)
+    {
+        float pathX = exitX + 2.0f;
+        float pathZ = exitZ + i * 3.0f;
+        float pathY = getTerrainHeight(pathX, pathZ);
+
+        gameObjects.push_back(std::make_unique<StaticObject>(
+            pathX, pathY, pathZ, 0.3f, ObjectType::ROCK, 0.6f, 0.4f, 0.6f));
+
+        pathX = exitX - 2.0f;
+        gameObjects.push_back(std::make_unique<StaticObject>(
+            pathX, pathY, pathZ, 0.3f, ObjectType::ROCK, 0.6f, 0.4f, 0.6f));
+    }
+
+    float startX = checkpointX + 1.0f;
+    float startZ = checkpointZ;
     float startY = getTerrainHeight(startX, startZ) + 0.3f;
     player.setPosition(startX, startY, startZ);
 }
 
 void Game::initObjects()
 {
-    // Criar árvores aleatórias
     for (int i = 0; i < 20; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
@@ -377,12 +648,11 @@ void Game::initObjects()
         float y = getTerrainHeight(x, z);
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue; 
         gameObjects.push_back(std::make_unique<StaticObject>(
             x, y, z, size, TREE, 0.3f, 0.5f, 0.1f));
     }
 
-    // Criar pedras
     for (int i = 0; i < 10; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
@@ -391,12 +661,12 @@ void Game::initObjects()
         float y = getTerrainHeight(x, z);
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue;
         gameObjects.push_back(std::make_unique<StaticObject>(
             x, y, z, size, ROCK, 0.5f, 0.5f, 0.5f));
     }
 
-    // Criar casas
+
     for (int i = 0; i < 5; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
@@ -405,27 +675,25 @@ void Game::initObjects()
         float y = getTerrainHeight(x, z);
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue; 
         gameObjects.push_back(std::make_unique<StaticObject>(
             x, y, z, size, HOUSE, 0.7f, 0.4f, 0.1f));
     }
 
-    // Criar inimigos
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 10; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
         float z = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
         float size = 0.4f + ((float)rand() / RAND_MAX) * 0.3f;
-        int level = 1 + rand() % 3; // Inimigos de nível 1 a 3
+        int level = 1 + rand() % 3;
         float y = getTerrainHeight(x, z);
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue; 
         gameObjects.push_back(std::make_unique<Enemy>(
             x, y, z, size, level));
     }
 
-    // Criar itens
     for (int i = 0; i < 3; i++)
     {
         float x = (float)(rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
@@ -434,7 +702,7 @@ void Game::initObjects()
         float y = getTerrainHeight(x, z) + 0.3f;
 
         if (isUnderWater(x, z))
-            continue; // ignora objetos submersos
+            continue; 
         gameObjects.push_back(std::make_unique<StaticObject>(
             x, y, z, size, ITEM, 0.9f, 0.8f, 0.1f));
     }
@@ -448,232 +716,529 @@ void Game::initObjects()
         GrassPatch patch;
         patch.x = (rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
         patch.z = (rand() % (int)(WORLD_SIZE * 2)) - WORLD_SIZE;
-        patch.radius = 2.0f + (rand() % 300) / 100.0f; // raio entre 2 e 5
+        patch.radius = 2.0f + (rand() % 300) / 100.0f;
         grassPatches.push_back(patch);
     }
 
-    // Criar grama com densidade controlada
-    for (float x = -WORLD_SIZE; x <= WORLD_SIZE; x += 0.5f)
+    for (float x = -WORLD_SIZE; x <= WORLD_SIZE * 10; x += 0.5f)
     {
-        for (float z = -WORLD_SIZE; z <= WORLD_SIZE; z += 0.5f)
+        for (float z = -WORLD_SIZE; z <= WORLD_SIZE * 10; z += 0.5f)
         {
             if (hasGrass(x, z))
             {
+
                 float offsetX = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
                 float offsetZ = ((rand() % 100) / 100.0f - 0.5f) * 0.3f;
                 float y = getTerrainHeight(x + offsetX, z + offsetZ) + 0.01f;
 
                 if (isUnderWater(x, z))
-                    continue; // ignora objetos submersos
+                    continue;
+
                 gameObjects.push_back(std::make_unique<GrassBlade>(x + offsetX, y, z + offsetZ));
+                float worldX = (DUNGEON_WIDTH / 2) * 5.0f;
+                float worldZ = (DUNGEON_HEIGHT / 2) * 5.0f;
             }
         }
     }
 
-    // Portal para a dungeon
-    addPortalNearEdge(WORLD_SIZE, 1.5f, -15.0f, -15.0f); // Dungeon 1
-    addPortalNearEdge(WORLD_SIZE, 1.5f, 15.0f, -15.0f);  // Dungeon 2
-    addPortalNearEdge(WORLD_SIZE, 1.5f, -15.0f, 15.0f);  // Dungeon 3
-    addPortalNearEdge(WORLD_SIZE, 1.5f, 0.0f, 0.0f);     // Retorno ao centro
+    addPortalNearEdge(WORLD_SIZE, 1.5f, -15.0f, -15.0f, MapType::MAIN); // DUNGEON_ONE_LEVEL 1
+    addPortalNearEdge(WORLD_SIZE, 1.5f, 15.0f, -15.0f, MapType::MAIN);  // DUNGEON_ONE_LEVEL 2
+    addPortalNearEdge(WORLD_SIZE, 1.5f, -15.0f, 15.0f, MapType::MAIN);  // DUNGEON_ONE_LEVEL 3
+    addPortalNearEdge(WORLD_SIZE, 1.5f, 0.0f, 0.0f, MapType::MAIN);     // Retorno ao centro
 }
 
-void Game::addPortalNearEdge(float worldSize, float margin, float destX, float destZ)
+void Game::addPortalNearEdge(float worldSize, float margin, float destX, float destZ, MapType map)
 {
     float edge = worldSize - margin;
     float x = 0.0f, z = 0.0f;
-
-    int side = rand() % 4; // 0: cima, 1: baixo, 2: esquerda, 3: direita
+    int side = rand() % 4;
 
     switch (side)
     {
-    case 0: // topo
+    case 0:
         x = (rand() % (int)(worldSize * 2)) - worldSize;
         z = edge;
         break;
-    case 1: // baixo
+    case 1:
         x = (rand() % (int)(worldSize * 2)) - worldSize;
         z = -edge;
         break;
-    case 2: // esquerda
+    case 2:
         x = -edge;
         z = (rand() % (int)(worldSize * 2)) - worldSize;
         break;
-    case 3: // direita
+    case 3:
         x = edge;
         z = (rand() % (int)(worldSize * 2)) - worldSize;
         break;
     }
 
     float y = getTerrainHeight(x, z);
-    gameObjects.push_back(std::make_unique<Portal>(x, y + 0.2f, z, 0.4f, destX, destZ, MapType::MAIN));
+    gameObjects.push_back(std::make_unique<Portal>(x, y + 0.2f, z, 0.4f, destX, destZ, map));
 }
 
 void Game::update()
 {
-    // Calcular deltaTime
+    static float lastFrameTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
     float currentTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
-    deltaTime = currentTime - lastFrameTime;
+    float deltaTime = currentTime - lastFrameTime;
     lastFrameTime = currentTime;
 
-    // Atualizar o jogador
-    player.update(deltaTime);
+    static bool gameOverSoundPlayed = false;
 
-    // Verificar modo de jogo atual
-    if (gameMode != 2)
+    if (player.getHealth() == 0)
     {
-        gameMode = 0; // Padrão: exploração
+        gameMode = STATE_GAME::GAME_OVER;
+        if (sound.isAudioPlaying(0))
+            sound.stopAudioRepeter(0);
+        if (sound.isAudioPlaying(9))
+            sound.stopAudioRepeter(9);
+        if (sound.isAudioPlaying(1))
+            sound.stopAudioRepeter(1);
+        if (sound.isAudioPlaying(6))
+            sound.stopAudioRepeter(6);
+        if (sound.isAudioPlaying(8))
+            sound.stopAudioRepeter(8);
+        if (sound.isAudioPlaying(15))
+            sound.stopAudioRepeter(15);
+        if (sound.isAudioPlaying(19))
+            sound.stopAudioRepeter(19);
+        if (sound.isAudioPlaying(18))
+            sound.stopAudioRepeter(18);
+        if (sound.isAudioPlaying(17))
+            sound.stopAudioRepeter(17);
+        sound.playAudioRepeter(20, volume.musica);
     }
-    // Atualizar objetos
-    for (auto &object : gameObjects)
+    else
     {
-        object->update(deltaTime);
+        sound.stopAudioRepeter(20);
+    }
 
-        // Verificar inimigos para combate
-        Enemy *enemy = dynamic_cast<Enemy *>(object.get());
-        if (enemy && enemy->isActive())
+    constrainPlayer();
+    animateSwordAttack(currentTime, loader, getPlayer(), camera);
+
+    if (currentMap == MapType::MAIN && gameMode != STATE_GAME::GAME_OVER)
+    {
+        if (sound.isAudioPlaying(19))
+            sound.stopAudioRepeter(19);
+        if (!sound.isAudioPlaying(6))
         {
-            // Atualizar comportamento do inimigo
-            enemy->moveTowardsPlayer(player, deltaTime);
-            if (enemy->attackPlayer(player, deltaTime))
+            sound.playAudioRepeter(6, volume.ambient);
+        }
+        if (gameMode == STATE_GAME::COMBAT)
+        {
+            if (!sound.isAudioPlaying(1))
             {
-                std::cout << "Você foi atacado! Vida restante: " << player.getHealth() << std::endl;
+                sound.playAudioRepeter(1, volume.musica);
+                sound.stopAudioRepeter(0);
+                sound.stopAudioRepeter(8);
             }
-
-            // Se algum inimigo estiver em combate, ativar modo de combate
-            if (enemy->isInCombat())
+        }
+        if (gameMode == STATE_GAME::PLAYING_EXPLORER)
+        {
+            if (!sound.isAudioPlaying(0))
             {
-                gameMode = 1;
-            }
-
-            // Verificar se o jogador derrotou o inimigo
-            if (!enemy->isActive())
-            {
-                player.addExperience(static_cast<int>(enemy->getExperienceValue()));
-                std::cout << "Inimigo derrotado! Ganhou " << enemy->getExperienceValue() << " XP." << std::endl;
+                sound.playAudioRepeter(0, volume.musica);
+                sound.stopAudioRepeter(1);
             }
         }
     }
-
-    // Verificar colisões com objetos
-    checkCollisions();
-
-    // Atualizar altura do jogador conforme o terreno
-    float targetY = getTerrainHeight(player.getX(), player.getZ()) + 0.3f;
-    float currentY = player.getY();
-    float smoothY = lerp(currentY, targetY, 0.1f); // 0.1 = suavização
-    player.setPosition(player.getX(), smoothY, player.getZ());
-
-    // Manter o jogador dentro dos limites do mundo
-    constrainPlayer();
-
-    showPortalMessage = false;
-
-    for (auto &obj : gameObjects)
+    if (currentMap == MapType::DUNGEON_ONE_LEVEL && gameMode != STATE_GAME::GAME_OVER)
     {
-        Portal *portal = dynamic_cast<Portal *>(obj.get());
-        if (portal && portal->playerIsNearby(player))
+        if (!sound.isAudioPlaying(8))
         {
-            showPortalMessage = true;
+            sound.playAudioRepeter(8, volume.ambient);
+            sound.stopAudioRepeter(0);
+            sound.stopAudioRepeter(6);
+        }
+    }
+    if (currentMap == MapType::DUNGEON_TWO_LEVEL && gameMode != STATE_GAME::GAME_OVER)
+    {
+        if (!sound.isAudioPlaying(9))
+        {
+            sound.playAudioRepeter(9, volume.musica);
+            sound.stopAudioRepeter(0);
+            sound.stopAudioRepeter(6);
+        }
+    }
+    if (currentMap == MapType::PARASIDE && gameMode != STATE_GAME::GAME_OVER)
+    {
+        player.setHealth(player.getMaxHealth());
+        if (!sound.isAudioPlaying(19))
+        {
+            sound.playAudioRepeter(19, volume.musica);
+            sound.stopAudioRepeter(0);
+            sound.stopAudioRepeter(9);
+        }
+    }
+    if (currentMap == MapType::BOSS && gameMode != STATE_GAME::GAME_OVER)
+    {
+        if (!sound.isAudioPlaying(15) && !BossDefeat && gameMode != STATE_GAME::GAME_OVER)
+        {
+            sound.playAudioRepeter(15, volume.musica);
+            sound.stopAudioRepeter(0);
+            sound.stopAudioRepeter(6);
+            sound.stopAudioRepeter(9);
+        }
+        if (BossDefeat)
+        {
+            sound.stopAudioRepeter(15);
+        }
+    }
 
-            if (GetAsyncKeyState(VK_RETURN) & 0x8000)
+    if (gameMode == STATE_GAME::COMBAT || gameMode == STATE_GAME::PLAYING_EXPLORER)
+    {
+        this->updateMoviment();
+        player.update(deltaTime);
+        bool isAnyEnemyActive = false;
+        int quant_enemies = 0;
+
+        for (auto &object : gameObjects)
+        {
+
+            object->update(deltaTime);
+            const std::string typeName = typeid(*object).name();
+
+            Enemy *enemy = dynamic_cast<Enemy *>(object.get());
+            if (enemy)
             {
-                portal->teleport(player, *this);
-                std::cout << ">> Teleportado para nova área!" << std::endl;
+                if (enemy->isActive())
+                {
+                    quant_enemies++;
+                    enemy->moveTowardsPlayer(player, deltaTime);
+
+                    if (enemy->attackPlayer(player, deltaTime))
+                    {
+                        std::cout << "Você foi atacado! Vida restante: " << player.getHealth() << std::endl;
+                    }
+
+                    if (enemy->isInCombat())
+                    {
+                        enemy->setDetectionRange(20.f);
+                        isAnyEnemyActive = true;
+                    }
+                }
+                else
+                {
+                    if (!enemy->isExperienceGiven())
+                    {
+                        int xp = static_cast<int>(enemy->getExperienceValue());
+                        player.addExperience(xp);
+                        sound.playAudio(21, volume.efeitos);
+                        enemy->markExperienceAsGiven();
+                    }
+                }
             }
+            if (currentMap == MapType::BOSS)
+            {
+                Boss *boss = dynamic_cast<Boss *>(object.get());
+                if (boss)
+                {
+                    if (boss->isActive())
+                    {
+                        boss->moveTowardsPlayer(player, deltaTime, loader);
+                        if (boss->attackPlayer(player, deltaTime))
+                        {
+                            std::cout << "Você foi atacado! Vida restante: " << player.getHealth() << std::endl;
+                        }
+                        if (boss->isInCombat())
+                        {
+                        }
+                    }
+                    else
+                    {
+                        if (!boss->isExperienceGiven())
+                        {
+                            BossDefeat = true;
+                            int xp = static_cast<int>(boss->getExperienceValue() * 10.f);
+                            player.addExperience(xp);
+                            sound.playAudio(18, volume.efeitos);
+                            sound.playAudio(21, volume.efeitos);
+                            boss->markExperienceAsGiven();
+                        }
+                    }
+                }
+            }
+        }
+        inimigos = quant_enemies;
+
+        if (isAnyEnemyActive)
+        {
+            sound.stopAudioRepeter(0);
+            gameMode = STATE_GAME::COMBAT;
+
+            if (currentMap != MapType::DUNGEON_THREE_LEVEL && currentMap != MapType::BOSS)
+            {
+                sound.playAudioRepeter(1, volume.musica);
+            }
+            else
+            {
+                sound.playAudioRepeter(9, volume.musica);
+            }
+        }
+        else{
+            gameMode = STATE_GAME::PLAYING_EXPLORER;
+
+            if (currentMap != MapType::DUNGEON_THREE_LEVEL && currentMap != MapType::BOSS) {
+                sound.stopAudioRepeter(1);
+            }else{
+                sound.playAudioRepeter(9, volume.musica);
+            }
+
+            if (currentMap == MapType::MAIN){
+                sound.playAudioRepeter(0, volume.musica);
+            }
+        }
+
+        checkCollisions();
+
+        if ((player.getAttackTimer() / player.getAttackCooldown()) > 0){
+            isAttacking = true;
+            attackProgress = 0.0f;
+        }else {
+        isAttacking = false;
+            attackProgress = 0.0f;
+        }
+
+        float targetY = getTerrainHeight(player.getX(), player.getZ()) + 0.3f;
+        float currentY = player.getY();
+        float smoothY = lerp(currentY, targetY, 0.1f);
+        player.setPosition(player.getX(), smoothY, player.getZ());
+        showPortalMessage = false;
+
+        for (auto &obj : gameObjects){
+            Portal *portal = dynamic_cast<Portal *>(obj.get());
+            if (portal && portal->playerIsNearby(player)){
+                if (!isAnyEnemyActive && quant_enemies == 0){
+                    showPortalMessage = true;
+
+                    if (GetAsyncKeyState(VK_RETURN) & 0x8000){
+                        portal->teleport(player, *this);
+                        break;
+                    }
+                }
+                else{
+                    showPortalMessage = false;
+                    if (!sound.isAudioPlaying(3)){
+                        sound.playAudio(3, volume.efeitos);
+                    }
+                }
+            }
+        }
+
+        if (quant_enemies == 0 && !isAnyEnemyActive && !soundNoEnemie){
+            sound.playAudio(13, volume.efeitos);
+            soundNoEnemie = true; 
+        }else if (quant_enemies > 0){
+            soundNoEnemie = false;
         }
     }
 }
+void Game::animateSwordAttack(float deltaTime, MeshLoader &loader, const Player &player, const Camera &camera)
+{
+    float startX = player.getX();
+    float startY = player.getY() + 1.0f;
+    float startZ = player.getZ() - 0.4f;
+    if (isAttacking)
+    {
+        float attackDuration = 1.0f;
+        attackProgress += deltaTime / attackDuration;
 
+        if (attackProgress > 1.0f)
+        {
+            attackProgress = 0.0f;
+            isAttacking = false;
+        }
+
+        loader.updateModelRotationAngleById(0, 95.0f);
+        loader.updateModelRotationYById(0, 0.1f);
+        loader.updateModelRotationYById(0, 0.2f);
+        loader.updateModelTranslationXById(0, startX + 0.2f);
+        loader.updateModelTranslationYById(0, startY);
+        loader.updateModelTranslationZById(0, startZ + 0.8f);
+
+        loader.updateModelRotationXById(0, std::sin(deltaTime * 4));
+        loader.updateModelTranslationXById(0, startX - (0.5f * (std::sin(deltaTime * 4.0f) - 0.5f)));
+        loader.updateModelTranslationYById(0, startY - 0.3f);
+        loader.updateModelTranslationZById(0, startZ + 0.2f + 0.3f * (std::sin(deltaTime) - 0.5f));
+    }
+    else
+
+    {
+        float angleRad = player.getRotY() * M_PI / 180.0f;
+        float camX = player.getX() - std::sin(angleRad + camera.getRotationY()) * 1.0f;
+        float camZ = player.getZ() - std::cos(angleRad + camera.getRotationY()) * 1.0f;
+
+        loader.updateModelRotationAngleById(0, 270.0f);
+        loader.updateModelTranslationXById(0, camX);
+        loader.updateModelTranslationYById(0, player.getY());
+        loader.updateModelTranslationZById(0, camZ);
+    }
+}
 void Game::render()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(45.0f, glutGet(GLUT_WINDOW_WIDTH) / (float)glutGet(GLUT_WINDOW_HEIGHT), 0.1f, 100.0f);
-
-    // Configurar câmera
     glMatrixMode(GL_MODELVIEW);
+
     glLoadIdentity();
+    camera.applyView(player);
 
-    // Posicionar câmera em 3ª pessoa
-    float camX = player.getX() - cameraDistance * std::sin(player.getRotY() * M_PI / 180.0f);
-    float camZ = player.getZ() - cameraDistance * std::cos(player.getRotY() * M_PI / 180.0f);
-
-    if (topDownView)
-    {
-        gluLookAt(player.getX(), 50.0f, player.getZ(),
-                  player.getX(), 0.0f, player.getZ(),
-                  0.0f, 0.0f, -1.0f);
-    }
-    else
-    {
-        gluLookAt(
-            camX, player.getY() + cameraHeight, camZ,    // Posição da câmera
-            player.getX(), player.getY(), player.getZ(), // Ponto para onde a câmera olha
-            0.0f, 1.0f, 0.0f                             // Vetor "up" (para cima)
-        );
-    }
-
-    // Desenhar o mundo
     drawGround();
-
     drawLakes();
 
-    // Desenhar objetos
     for (auto &object : gameObjects)
     {
         if (object->isActive())
         {
-            object->draw();
+            if (auto boss = dynamic_cast<Boss *>(object.get()))
+            {
+                boss->drawForLoader(loader);
+            }
+            else
+            {
+                object->draw();
+            }
         }
     }
 
-    // Desenhar o jogador
+    loader.drawForId(0);
+    loader.updateModelTranslationXById(0, player.getX());
+    loader.updateModelTranslationYById(0, player.getY());
+    loader.updateModelTranslationZById(0, player.getZ() - 0.4f);
     player.draw();
 
-    // Desenhar HUD
-    drawHUD();
-
-    // Se estiver no menu de habilidades, desenhar a árvore
-    if (gameMode == 2)
-    {
-        drawSkillTree();
-    }
+    hud.drawHUD(player, gameMode, showPortalMessage, isOpenHouse);
+    if (this->getGameMode() == STATE_GAME::SKILL_TREE)
+        hud.drawSkillTree(skillNodes, skillTooltip);
+    if (this->getGameMode() == STATE_GAME::MENU || this->getGameMode() == STATE_GAME::GAME_OVER)
+        hud.drawMainHUD(player, gameMode, button_action, volume);
 }
-
 void Game::drawGround()
 {
     const float step = 1.0f;
     const float size = WORLD_SIZE;
+    GLfloat ambient[4];
+    GLfloat diffuse[4];
+    GLfloat specular[4];
+    GLfloat shininess;
+    GLuint texturaAtual;
 
-    if (currentMap == MapType::DUNGEON)
+    if (currentMap == MapType::DUNGEON_ONE_LEVEL)
     {
-        // Chão cinza na dungeon
-        GLfloat ambient[] = {0.2f, 0.2f, 0.2f, 1.0f};
-        GLfloat diffuse[] = {0.3f, 0.3f, 0.3f, 1.0f};
-        GLfloat specular[] = {0.1f, 0.1f, 0.1f, 1.0f};
-        GLfloat shininess = 10.0f;
-
-        glDisable(GL_COLOR_MATERIAL);
-        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
-        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
-        glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
-        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+        ambient[0] = 0.25f;
+        ambient[1] = 0.2f;
+        ambient[2] = 0.2f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.5f;
+        diffuse[1] = 0.3f;
+        diffuse[2] = 0.3f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.2f;
+        specular[1] = 0.15f;
+        specular[2] = 0.15f;
+        specular[3] = 1.0f;
+        shininess = 12.0f;
+        texturaAtual = texturaDungeon1;
+    }
+    else if (currentMap == MapType::DUNGEON_TWO_LEVEL)
+    {
+        ambient[0] = 0.2f;
+        ambient[1] = 0.25f;
+        ambient[2] = 0.35f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.3f;
+        diffuse[1] = 0.35f;
+        diffuse[2] = 0.45f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.15f;
+        specular[1] = 0.2f;
+        specular[2] = 0.25f;
+        specular[3] = 1.0f;
+        shininess = 15.0f;
+        texturaAtual = texturaDungeon2;
+    }
+    else if (currentMap == MapType::DUNGEON_THREE_LEVEL)
+    {
+        ambient[0] = 0.35f;
+        ambient[1] = 0.15f;
+        ambient[2] = 0.25f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.4f;
+        diffuse[1] = 0.2f;
+        diffuse[2] = 0.3f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.25f;
+        specular[1] = 0.1f;
+        specular[2] = 0.15f;
+        specular[3] = 1.0f;
+        shininess = 18.0f;
+        texturaAtual = texturaDungeon3;
+    }
+    else if (currentMap == MapType::BOSS)
+    {
+        ambient[0] = 0.25f;
+        ambient[1] = 0.25f;
+        ambient[2] = 0.25f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.8f;
+        diffuse[1] = 0.3f;
+        diffuse[2] = 0.3f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.5f;
+        specular[1] = 0.5f;
+        specular[2] = 0.5f;
+        specular[3] = 1.0f;
+        shininess = 30.0f;
+        texturaAtual = texturaBoss;
+    }
+    else if (currentMap == MapType::PARASIDE)
+    {
+        ambient[0] = 0.45f;
+        ambient[1] = 0.45f;
+        ambient[2] = 0.45f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.65f;
+        diffuse[1] = 0.85f;
+        diffuse[2] = 0.65f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.35f;
+        specular[1] = 0.35f;
+        specular[2] = 0.35f;
+        specular[3] = 1.0f;
+        shininess = 15.0f;
+        texturaAtual = texturaParaside;
     }
     else
     {
-        // Cor normal do chão no mapa principal
-        GLfloat ambient[] = {0.1f, 0.6f, 0.35f, 1.0f};
-        GLfloat diffuse[] = {0.1f, 0.3f, 0.1f, 1.0f};
-        GLfloat specular[] = {0.05f, 0.05f, 0.05f, 1.0f};
-        GLfloat shininess = 5.0f;
-
-        glDisable(GL_COLOR_MATERIAL);
-        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
-        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
-        glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
-        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+        ambient[0] = 0.15f;
+        ambient[1] = 0.65f;
+        ambient[2] = 0.4f;
+        ambient[3] = 1.0f;
+        diffuse[0] = 0.15f;
+        diffuse[1] = 0.35f;
+        diffuse[2] = 0.15f;
+        diffuse[3] = 1.0f;
+        specular[0] = 0.1f;
+        specular[1] = 0.1f;
+        specular[2] = 0.1f;
+        specular[3] = 1.0f;
+        shininess = 8.0f;
+        texturaAtual = texturaGrama;
     }
+
+    glDisable(GL_COLOR_MATERIAL);
+    glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+    glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texturaAtual);
+
+    float texScale = 0.5f;
 
     for (float x = -size; x < size; x += step)
     {
@@ -685,20 +1250,45 @@ void Game::drawGround()
             float y4 = getTerrainHeight(x, z + step);
 
             glBegin(GL_QUADS);
+            float nx1 = x - (x + step);
+            float ny1 = y1 - y2;
+            float nz1 = z - z;
+            float len1 = sqrt(nx1 * nx1 + ny1 * ny1 + nz1 * nz1);
+            if (len1 > 0)
+            {
+                glNormal3f(nx1 / len1, ny1 / len1, nz1 / len1);
+            }
+            else
+            {
+                glNormal3f(0, 1, 0);
+            }
+
+            glTexCoord2f(x * texScale, z * texScale);
             glVertex3f(x, y1, z);
+
+            glTexCoord2f((x + step) * texScale, z * texScale);
             glVertex3f(x + step, y2, z);
+
+            glTexCoord2f((x + step) * texScale, (z + step) * texScale);
             glVertex3f(x + step, y3, z + step);
+
+            glTexCoord2f(x * texScale, (z + step) * texScale);
             glVertex3f(x, y4, z + step);
+
             glEnd();
         }
     }
 
-    // Trilhas
-    GLfloat trailColor[] = {0.5f, 0.4f, 0.2f};
-    glDisable(GL_COLOR_MATERIAL);
-    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, trailColor);
+    glDisable(GL_TEXTURE_2D);
 
-    float trailWidth = 0.5f; // mais sutil
+    GLfloat trailColor[] = {0.55f, 0.45f, 0.25f, 1.0f};
+    GLfloat trailSpecular[] = {0.2f, 0.2f, 0.2f, 1.0f};
+
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, trailColor);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, trailSpecular);
+    glMaterialf(GL_FRONT, GL_SHININESS, 10.0f);
+
+    float trailWidth = 0.5f;
     for (size_t i = 1; i < trailCurvePoints.size(); ++i)
     {
         TrailPoint p1 = trailCurvePoints[i - 1];
@@ -714,6 +1304,8 @@ void Game::drawGround()
         dz /= len;
 
         glBegin(GL_TRIANGLE_STRIP);
+        glNormal3f(0.0f, 1.0f, 0.0f);
+
         glVertex3f(p1.x + dx * trailWidth, p1.y, p1.z + dz * trailWidth);
         glVertex3f(p1.x - dx * trailWidth, p1.y, p1.z - dz * trailWidth);
         glVertex3f(p2.x + dx * trailWidth, p2.y, p2.z + dz * trailWidth);
@@ -721,7 +1313,9 @@ void Game::drawGround()
         glEnd();
     }
 
-    // Clareiras
+    GLfloat clearingColor[] = {0.6f, 0.5f, 0.3f, 1.0f};
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, clearingColor);
+
     for (const auto &c : trailClearings)
     {
         float radius = 1.5f;
@@ -729,6 +1323,8 @@ void Game::drawGround()
         float centerY = getTerrainHeight(c.x, c.z) + 0.01f;
 
         glBegin(GL_TRIANGLE_FAN);
+        glNormal3f(0.0f, 1.0f, 0.0f);
+
         glVertex3f(c.x, centerY, c.z);
         for (int i = 0; i <= segments; ++i)
         {
@@ -761,7 +1357,6 @@ void Game::drawLakes()
         float cz = center.second;
         float radius = 3.5f;
 
-        // altura da água
         float minEdgeHeight = 1000.0f;
         for (int angle = 0; angle < 360; angle += 10)
         {
@@ -774,13 +1369,11 @@ void Game::drawLakes()
                 minEdgeHeight = height;
             }
         }
-        float waterHeight = minEdgeHeight - 0.02f; // ligeiramente abaixo da borda mais baixa
+        float waterHeight = minEdgeHeight - 0.02f;
 
-        // Cor da água
         float depthColor = std::min(1.0f, (waterHeight + 1.0f) / 5.0f);
         glColor4f(0.0f, 0.4f + 0.1f * sin(time), 0.7f, 0.25f);
 
-        // Desenhar tampo superior (superfície da água)
         glBegin(GL_TRIANGLE_FAN);
         glVertex3f(cx, waterHeight, cz);
         for (int angle = 0; angle <= 360; angle += 10)
@@ -793,8 +1386,7 @@ void Game::drawLakes()
             float terrainHeight = getTerrainHeight(x, z);
             float depth = waterHeight - terrainHeight;
 
-            // Mapeia profundidade para alpha (quanto mais fundo, menos transparente)
-            float alpha = std::min(0.5f, std::max(0.15f, depth * 0.8f)); // ajuste fino aqui
+            float alpha = std::min(0.5f, std::max(0.15f, depth * 0.8f));
             glColor4f(0.2f, 0.6f + 0.1f * sin(time), 0.8f, alpha);
 
             glVertex3f(x, waterHeight + wave, z);
@@ -806,236 +1398,6 @@ void Game::drawLakes()
     glEnable(GL_LIGHTING);
 }
 
-void Game::drawHUD()
-{
-    // Desabilitar iluminação e profundidade para desenhar a HUD
-    glDisable(GL_LIGHTING);
-    glDisable(GL_DEPTH_TEST);
-
-    // Configurar projeção ortogonal para HUD
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    gluOrtho2D(0, glutGet(GLUT_WINDOW_WIDTH), 0, glutGet(GLUT_WINDOW_HEIGHT));
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
-    int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
-
-    // Barra de vida
-    float barWidth = 200.0f;
-    float barHeight = 20.0f;
-    float healthPercent = player.getHealth() / player.getMaxHealth();
-
-    // Fundo da barra
-    glColor3f(0.3f, 0.3f, 0.3f);
-    glBegin(GL_QUADS);
-    glVertex2f(10, windowHeight - 30);
-    glVertex2f(10 + barWidth, windowHeight - 30);
-    glVertex2f(10 + barWidth, windowHeight - 30 - barHeight);
-    glVertex2f(10, windowHeight - 30 - barHeight);
-    glEnd();
-
-    // Barra de vida atual
-    glColor3f(1.0f - healthPercent, healthPercent, 0.0f);
-    glBegin(GL_QUADS);
-    glVertex2f(10, windowHeight - 30);
-    glVertex2f(10 + barWidth * healthPercent, windowHeight - 30);
-    glVertex2f(10 + barWidth * healthPercent, windowHeight - 30 - barHeight);
-    glVertex2f(10, windowHeight - 30 - barHeight);
-    glEnd();
-
-    // Barra de experiência
-    float expPercent = (float)player.getExperience() / (float)player.getExperienceToNextLevel();
-
-    // Fundo da barra
-    glColor3f(0.3f, 0.3f, 0.3f);
-    glBegin(GL_QUADS);
-    glVertex2f(10, windowHeight - 60);
-    glVertex2f(10 + barWidth, windowHeight - 60);
-    glVertex2f(10 + barWidth, windowHeight - 60 - barHeight);
-    glVertex2f(10, windowHeight - 60 - barHeight);
-    glEnd();
-
-    // Barra de experiência atual
-    glColor3f(0.2f, 0.4f, 0.8f);
-    glBegin(GL_QUADS);
-    glVertex2f(10, windowHeight - 60);
-    glVertex2f(10 + barWidth * expPercent, windowHeight - 60);
-    glVertex2f(10 + barWidth * expPercent, windowHeight - 60 - barHeight);
-    glVertex2f(10, windowHeight - 60 - barHeight);
-    glEnd();
-
-    // Barra de cooldown de ataque
-    float cooldownPercent = player.getAttackTimer() / player.getAttackCooldown();
-
-    if (cooldownPercent > 0)
-    {
-        // Fundo da barra
-        glColor3f(0.3f, 0.3f, 0.3f);
-        glBegin(GL_QUADS);
-        glVertex2f(10, windowHeight - 90);
-        glVertex2f(10 + barWidth, windowHeight - 90);
-        glVertex2f(10 + barWidth, windowHeight - 90 - barHeight);
-        glVertex2f(10, windowHeight - 90 - barHeight);
-        glEnd();
-
-        // Barra de cooldown atual
-        glColor3f(0.8f, 0.8f, 0.0f);
-        glBegin(GL_QUADS);
-        glVertex2f(10, windowHeight - 90);
-        glVertex2f(10 + barWidth * (1.0f - cooldownPercent), windowHeight - 90);
-        glVertex2f(10 + barWidth * (1.0f - cooldownPercent), windowHeight - 90 - barHeight);
-        glVertex2f(10, windowHeight - 90 - barHeight);
-        glEnd();
-    }
-
-    // Texto da HUD
-    glColor3f(1.0f, 1.0f, 1.0f);
-
-    char buffer[128];
-    sprintf(buffer, "Vida: %.1f/%.1f", player.getHealth(), player.getMaxHealth());
-    drawText(15, windowHeight - 25, buffer);
-
-    sprintf(buffer, "Nivel: %d   XP: %d/%d", player.getLevel(),
-            player.getExperience(), player.getExperienceToNextLevel());
-    drawText(15, windowHeight - 55, buffer);
-
-    if (cooldownPercent > 0)
-    {
-        sprintf(buffer, "Ataque: %.1f", player.getAttackCooldown() - player.getAttackTimer());
-        drawText(15, windowHeight - 85, buffer);
-    }
-    else
-    {
-        glColor3f(0.0f, 1.0f, 0.0f);
-        drawText(15, windowHeight - 85, "Ataque Pronto!");
-    }
-
-    // Status do jogo
-    if (gameMode == 1)
-    {
-        glColor3f(1.0f, 0.2f, 0.2f);
-        drawText(windowWidth / 2 - 50, windowHeight - 25, "COMBATE");
-        drawText(10, 20, "Pressione 1 para atacar");
-    }
-    else if (gameMode == 2)
-    {
-        glColor3f(0.2f, 0.7f, 1.0f);
-        drawText(windowWidth / 2 - 60, windowHeight - 25, "MENU DE HABILIDADES");
-        drawText(10, 20, "Use as teclas numericas (1-9) para melhorar habilidades");
-    }
-    else
-    {
-        glColor3f(0.2f, 1.0f, 0.2f);
-        drawText(windowWidth / 2 - 60, windowHeight - 25, "EXPLORACAO");
-    }
-
-    // Pontos de habilidade
-    if (player.getSkillTree().getSkillPoints() > 0)
-    {
-        glColor3f(1.0f, 1.0f, 0.0f);
-        sprintf(buffer, "Pontos de Habilidade: %d (Pressione K para abrir menu)",
-                player.getSkillTree().getSkillPoints());
-        drawText(windowWidth - 400, windowHeight - 25, buffer);
-    }
-
-    // Controles
-    glColor3f(1.0f, 1.0f, 1.0f);
-    drawText(windowWidth - 200, 80, "Controles:");
-    drawText(windowWidth - 200, 60, "W,A,S,D - Movimento");
-    drawText(windowWidth - 200, 40, "Q,E - Rotacao");
-    drawText(windowWidth - 200, 20, "Espaco - Ataque");
-
-    if (showPortalMessage)
-    {
-        glColor3f(1.0f, 1.0f, 0.0f);
-        drawText(glutGet(GLUT_WINDOW_WIDTH) / 2 - 100, 100, "Pressione [Enter] para entrar");
-    }
-
-    // Restaurar matrizes e estados
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
-
-    // Reativar estados
-    glEnable(GL_LIGHTING);
-    glEnable(GL_DEPTH_TEST);
-}
-
-void Game::drawSkillTree()
-{
-
-    // Calcular layout da árvore de habilidades
-    calculateSkillTreeLayout();
-
-    // Desabilitar iluminação e profundidade para desenhar o menu
-    glDisable(GL_LIGHTING);
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // Configurar projeção ortogonal para menu
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    gluOrtho2D(0, glutGet(GLUT_WINDOW_WIDTH), 0, glutGet(GLUT_WINDOW_HEIGHT));
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
-    int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
-
-    // Fundo semi-transparente
-    glColor4f(0.0f, 0.0f, 0.2f, 0.8f);
-    glBegin(GL_QUADS);
-    glVertex2f(50, 50);
-    glVertex2f(windowWidth - 50, 50);
-    glVertex2f(windowWidth - 50, windowHeight - 50);
-    glVertex2f(50, windowHeight - 50);
-    glEnd();
-
-    // Título
-    glColor3f(1.0f, 1.0f, 0.0f);
-    drawText(windowWidth / 2 - 80, windowHeight - 80, "ARVORE DE HABILIDADES");
-
-    // Pontos disponíveis
-    char buffer[128];
-    sprintf(buffer, "Pontos Disponiveis: %d", player.getSkillTree().getSkillPoints());
-    drawText(windowWidth / 2 - 80, windowHeight - 110, buffer);
-
-    // Desenhar conexões entre nós
-    drawSkillTreeConnections();
-
-    // Desenhar nós da árvore de habilidades
-    drawSkillTreeNodes();
-
-    // Desenhar tooltip para nós clicados
-    drawSkillTooltip();
-
-    // Instrução para sair
-    glColor3f(1.0f, 1.0f, 1.0f);
-    drawText(windowWidth / 2 - 100, 80, "Pressione K para voltar ao jogo");
-    drawText(windowWidth / 2 - 140, 60, "Use o mouse para selecionar habilidades");
-
-    // Restaurar matrizes e estados
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
-
-    // Reativar estados
-    glDisable(GL_BLEND);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_DEPTH_TEST);
-}
-
 void Game::calculateSkillTreeLayout()
 {
     int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
@@ -1043,16 +1405,13 @@ void Game::calculateSkillTreeLayout()
 
     const auto &skills = player.getSkillTree().getSkills();
 
-    // Limpar nós existentes
     skillNodes.clear();
 
-    // Definir layout básico com nós de habilidades básicas no centro
     float centerX = windowWidth / 2.0f;
     float centerY = windowHeight / 2.0f;
     float baseRadius = 30.0f;
     float nodeSpacing = 150.0f;
 
-    // Disposição em estrela das habilidades básicas (0-3)
     float angles[4] = {0, 90, 180, 270};
     for (int i = 0; i < 4; i++)
     {
@@ -1070,7 +1429,6 @@ void Game::calculateSkillTreeLayout()
         skillNodes.push_back(node);
     }
 
-    // Habilidades avançadas (4-7) como filhos das básicas
     for (int i = 0; i < 4; i++)
     {
         float angle = angles[i] * M_PI / 180.0f;
@@ -1087,330 +1445,11 @@ void Game::calculateSkillTreeLayout()
         skillNodes.push_back(node);
     }
 }
-
-void Game::drawSkillTreeConnections()
-{
-    glLineWidth(2.0f);
-
-    const auto &skills = player.getSkillTree().getSkills();
-
-    // Desenhar linhas conectando habilidades básicas (0-3) com avançadas (4-7)
-    for (int i = 0; i < 4; i++)
-    {
-        int parentIndex = i;
-        int childIndex = i + 4;
-
-        // Determinar cor da linha baseada no estado das habilidades
-        if (skills[childIndex]->getLevel() > 0)
-        {
-            // Conexão ativa
-            glColor3f(0.2f, 0.8f, 0.2f);
-        }
-        else if (skills[parentIndex]->getLevel() > 0)
-        {
-            // Conexão disponível
-            glColor3f(0.8f, 0.8f, 0.2f);
-        }
-        else
-        {
-            // Conexão indisponível
-            glColor3f(0.5f, 0.5f, 0.5f);
-        }
-
-        glBegin(GL_LINES);
-        glVertex2f(skillNodes[parentIndex].x, skillNodes[parentIndex].y);
-        glVertex2f(skillNodes[childIndex].x, skillNodes[childIndex].y);
-        glEnd();
-    }
-}
-
-void Game::drawSkillTreeNodes()
-{
-    const auto &skills = player.getSkillTree().getSkills();
-
-    // Desenhar cada nó
-    for (size_t i = 0; i < skillNodes.size(); i++)
-    {
-        const auto &node = skillNodes[i];
-        const auto &skill = skills[node.skillIndex];
-
-        // Determinar cor do nó baseada no estado da habilidade
-        if (skill->getLevel() == 0)
-        {
-            if (skill->canLearn() && player.getSkillTree().getSkillPoints() > 0)
-            {
-                // Nó disponível para aprendizado
-                glColor4f(0.8f, 0.8f, 0.2f, node.hovering ? 0.9f : 0.7f);
-            }
-            else
-            {
-                // Nó indisponível
-                glColor4f(0.5f, 0.5f, 0.5f, node.hovering ? 0.9f : 0.7f);
-            }
-        }
-        else if (skill->getLevel() == skill->getMaxLevel())
-        {
-            // Nó com nível máximo
-            glColor4f(1.0f, 0.6f, 0.0f, node.hovering ? 0.9f : 0.7f);
-        }
-        else
-        {
-            if (skill->canLearn() && player.getSkillTree().getSkillPoints() > 0)
-            {
-                // Nó com nível parcial e pode melhorar
-                glColor4f(0.2f, 0.8f, 0.2f, node.hovering ? 0.9f : 0.7f);
-            }
-            else
-            {
-                // Nó com nível parcial
-                glColor4f(0.2f, 0.6f, 0.8f, node.hovering ? 0.9f : 0.7f);
-            }
-        }
-
-        // Desenhar círculo do nó
-        drawFilledCircle(node.x, node.y, node.radius, 20);
-
-        // Borda do nó
-        if (node.hovering)
-        {
-            glLineWidth(2.5f);
-            glColor4f(1.0f, 1.0f, 1.0f, 0.9f);
-        }
-        else
-        {
-            glLineWidth(1.5f);
-            glColor4f(0.8f, 0.8f, 0.8f, 0.7f);
-        }
-        drawCircle(node.x, node.y, node.radius, 20);
-
-        // Desenhar ícone ou indicador de nível dentro do nó
-        char levelText[8];
-        sprintf(levelText, "%d/%d", skill->getLevel(), skill->getMaxLevel());
-
-        // Centralizar texto
-        float textWidth = strlen(levelText) * 8.0f;
-        glColor3f(1.0f, 1.0f, 1.0f);
-        drawText(node.x - textWidth / 2, node.y - 6, levelText);
-
-        // Desenhar ícone baseado no tipo de habilidade
-        drawSkillIcon(node.x, node.y - 20, skill->getType());
-    }
-}
-
-void Game::drawSkillIcon(float x, float y, SkillType type)
-{
-    glLineWidth(2.0f);
-    glColor3f(1.0f, 1.0f, 1.0f);
-
-    float iconSize = 8.0f;
-
-    switch (type)
-    {
-    case ATTACK:
-        // Ícone de espada
-        glBegin(GL_LINES);
-        glVertex2f(x - iconSize, y + iconSize);
-        glVertex2f(x + iconSize, y - iconSize);
-        glVertex2f(x - iconSize / 2, y - iconSize / 2);
-        glVertex2f(x + iconSize / 2, y + iconSize / 2);
-        glEnd();
-        break;
-
-    case DEFENSE:
-        // Ícone de escudo
-        drawCircle(x, y, iconSize, 8);
-        break;
-
-    case MAGIC:
-        // Ícone de estrela
-        drawStar(x, y, iconSize, 5);
-        break;
-
-    case SPEED:
-        // Ícone de velocidade
-        glBegin(GL_LINES);
-        glVertex2f(x - iconSize, y);
-        glVertex2f(x + iconSize, y);
-        glVertex2f(x + iconSize / 2, y - iconSize / 2);
-        glVertex2f(x + iconSize, y);
-        glVertex2f(x + iconSize / 2, y + iconSize / 2);
-        glVertex2f(x + iconSize, y);
-        glEnd();
-        break;
-    }
-}
-
-void Game::drawSkillTooltip()
-{
-    if (!skillTooltip.visible)
-        return;
-
-    const auto &skills = player.getSkillTree().getSkills();
-    const auto &skill = skills[skillTooltip.skillIndex];
-
-    // Fundo da tooltip
-    glColor4f(0.1f, 0.1f, 0.3f, 0.9f);
-    glBegin(GL_QUADS);
-    glVertex2f(skillTooltip.x, skillTooltip.y);
-    glVertex2f(skillTooltip.x + skillTooltip.width, skillTooltip.y);
-    glVertex2f(skillTooltip.x + skillTooltip.width, skillTooltip.y + skillTooltip.height);
-    glVertex2f(skillTooltip.x, skillTooltip.y + skillTooltip.height);
-    glEnd();
-
-    // Borda
-    glColor4f(0.8f, 0.8f, 0.9f, 1.0f);
-    glLineWidth(2.0f);
-    glBegin(GL_LINE_LOOP);
-    glVertex2f(skillTooltip.x, skillTooltip.y);
-    glVertex2f(skillTooltip.x + skillTooltip.width, skillTooltip.y);
-    glVertex2f(skillTooltip.x + skillTooltip.width, skillTooltip.y + skillTooltip.height);
-    glVertex2f(skillTooltip.x, skillTooltip.y + skillTooltip.height);
-    glEnd();
-
-    // Título da habilidade
-    glColor3f(1.0f, 1.0f, 0.0f);
-    drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 25, skill->getName().c_str());
-
-    // Informações da habilidade
-    glColor3f(1.0f, 1.0f, 1.0f);
-    char buffer[128];
-
-    // Tipo de habilidade
-    const char *typeStr = "";
-    switch (skill->getType())
-    {
-    case ATTACK:
-        typeStr = "Ataque";
-        break;
-    case DEFENSE:
-        typeStr = "Defesa";
-        break;
-    case MAGIC:
-        typeStr = "Magia";
-        break;
-    case SPEED:
-        typeStr = "Velocidade";
-        break;
-    }
-    sprintf(buffer, "Tipo: %s", typeStr);
-    drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 45, buffer);
-
-    // Nível atual e máximo
-    sprintf(buffer, "Nivel: %d/%d", skill->getLevel(), skill->getMaxLevel());
-    drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 65, buffer);
-
-    // Valor atual
-    sprintf(buffer, "Valor: %.1f", skill->getValue());
-    drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 85, buffer);
-
-    // Custo
-    sprintf(buffer, "Custo: 1 ponto de habilidade");
-    drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 105, buffer);
-
-    // Disponibilidade
-    if (!skill->canLearn())
-    {
-        glColor3f(1.0f, 0.3f, 0.3f);
-        if (skill->getLevel() >= skill->getMaxLevel())
-        {
-            drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 125, "Nivel maximo atingido");
-        }
-        else
-        {
-            drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 125, "Pre-requisitos nao cumpridos");
-        }
-    }
-    else if (player.getSkillTree().getSkillPoints() <= 0)
-    {
-        glColor3f(1.0f, 0.3f, 0.3f);
-        drawText(skillTooltip.x + 10, skillTooltip.y + skillTooltip.height - 125, "Pontos insuficientes");
-    }
-
-    // Botões de confirmação
-    if (skillTooltip.showConfirmation && skill->canLearn() && player.getSkillTree().getSkillPoints() > 0)
-    {
-        // Botão Sim
-        glColor4f(0.2f, 0.7f, 0.2f, 0.8f);
-        glBegin(GL_QUADS);
-        glVertex2f(skillTooltip.x + 30, skillTooltip.y + 20);
-        glVertex2f(skillTooltip.x + 100, skillTooltip.y + 20);
-        glVertex2f(skillTooltip.x + 100, skillTooltip.y + 45);
-        glVertex2f(skillTooltip.x + 30, skillTooltip.y + 45);
-        glEnd();
-
-        // Botão Não
-        glColor4f(0.7f, 0.2f, 0.2f, 0.8f);
-        glBegin(GL_QUADS);
-        glVertex2f(skillTooltip.x + 150, skillTooltip.y + 20);
-        glVertex2f(skillTooltip.x + 220, skillTooltip.y + 20);
-        glVertex2f(skillTooltip.x + 220, skillTooltip.y + 45);
-        glVertex2f(skillTooltip.x + 150, skillTooltip.y + 45);
-        glEnd();
-
-        // Textos dos botões
-        glColor3f(1.0f, 1.0f, 1.0f);
-        drawText(skillTooltip.x + 45, skillTooltip.y + 30, "Aprender");
-        drawText(skillTooltip.x + 175, skillTooltip.y + 30, "Cancelar");
-    }
-}
-
-// Funções auxiliares de desenho
-void Game::drawFilledCircle(float x, float y, float radius, int segments)
-{
-    glBegin(GL_POLYGON);
-    for (int i = 0; i < segments; i++)
-    {
-        float theta = 2.0f * M_PI * i / segments;
-        float px = x + radius * cosf(theta);
-        float py = y + radius * sinf(theta);
-        glVertex2f(px, py);
-    }
-    glEnd();
-}
-
-void Game::drawCircle(float x, float y, float radius, int segments)
-{
-    glBegin(GL_LINE_LOOP);
-    for (int i = 0; i < segments; i++)
-    {
-        float theta = 2.0f * M_PI * i / segments;
-        float px = x + radius * cosf(theta);
-        float py = y + radius * sinf(theta);
-        glVertex2f(px, py);
-    }
-    glEnd();
-}
-
-void Game::drawStar(float x, float y, float radius, int points)
-{
-    float innerRadius = radius * 0.4f;
-
-    glBegin(GL_LINE_LOOP);
-    for (int i = 0; i < points * 2; i++)
-    {
-        float theta = M_PI * i / points;
-        float r = (i % 2 == 0) ? radius : innerRadius;
-        float px = x + r * cosf(theta);
-        float py = y + r * sinf(theta);
-        glVertex2f(px, py);
-    }
-    glEnd();
-}
-
-void Game::drawText(float x, float y, const char *string)
-{
-    // Posiciona o texto
-    glRasterPos2f(x, y);
-
-    // Desenha cada caractere
-    for (const char *c = string; *c != '\0'; c++)
-    {
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *c);
-    }
-}
-
 void Game::checkCollisions()
 {
+    static float lastHousePosX = -1.0f;
+    static float lastHousePosZ = -1.0f;
+
     for (auto &object : gameObjects)
     {
         if (!object->isActive() || !object->isCollidable())
@@ -1422,8 +1461,8 @@ void Game::checkCollisions()
             {
                 object->setActive(false);
                 player.heal(10.0f);
+                sound.playAudio(4, volume.efeitos);
                 player.addExperience(10000);
-                std::cout << "Item coletado! +10 XP, +10 Vida" << std::endl;
                 continue;
             }
 
@@ -1448,9 +1487,7 @@ void Game::checkCollisions()
     }
 }
 
-void Game::constrainPlayer()
-{
-    // Manter o jogador dentro dos limites do mundo
+void Game::constrainPlayer(){
     float x = player.getX();
     float z = player.getZ();
 
@@ -1468,125 +1505,148 @@ void Game::constrainPlayer()
 
 void Game::handleKeyPress(unsigned char key, int x, int y)
 {
-    if (gameMode == 2)
+    key = std::tolower(key);
+    keyStates[key] = true;
+    float currentTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+    deltaTime = currentTime - lastFrameTime;
+    lastFrameTime = currentTime;
+    if (gameMode == STATE_GAME::SKILL_TREE)
     {
-        // Menu de habilidades
         if (key == 'k')
-        {                 // K
-            gameMode = 0; // Voltar para exploração
-        }
-        else if (key >= '1' && key <= '9')
         {
+            sound.playAudio(5, volume.UI);
+            gameMode = STATE_GAME::PLAYING_EXPLORER;
+            return;
+        }
+        if (key >= '1' && key <= '9'){
             int skillIndex = key - '1';
             const auto &skills = player.getSkillTree().getSkills();
+            sound.playAudio(5, volume.UI);
 
-            if (skillIndex < static_cast<int>(skills.size()))
-            {
+            if (skillIndex < static_cast<int>(skills.size())){
+
                 std::string skillName = skills[skillIndex]->getName();
-                if (player.getSkillTree().useSkillPoint(skillName))
-                {
-                    std::cout << "Habilidade melhorada: " << skillName << std::endl;
+                if (player.getSkillTree().useSkillPoint(skillName)){
+                    sound.playAudio(10, volume.UI);
                 }
                 else
-                {
                     std::cout << "Não foi possível melhorar a habilidade." << std::endl;
-                }
             }
         }
+
         return;
     }
 
-    // Controles normais
+    if (this->getGameMode() == STATE_GAME::MENU){
+        if (key == 9){
+            sound.playAudio(5, volume.UI);
+            gameMode = STATE_GAME::PLAYING_EXPLORER;
+            return;
+        }
+        if (key == 'k'){
+            sound.playAudio(5, volume.UI);
+            gameMode = STATE_GAME::SKILL_TREE;
+            return;
+        }
+
+        return;
+    }
+
     switch (key)
     {
-    case 'w':
-    case 'W':
-        player.moveForward();
-        break;
-    case 's':
-    case 'S':
-        player.moveBackward();
-        break;
     case 't':
-        topDownView = !topDownView;
+        sound.playAudio(5, volume.UI);
+        camera.toggleTopDown(gameMode);
         break;
-    case 'a':
-    case 'A':
-        player.strafeLeft();
-        break;
-    case 'd':
-    case 'D':
-        player.strafeRight();
-        break;
-    case 'q':
-    case 'Q':
-        player.rotateLeft();
-        break;
-    case 'e':
-    case 'E':
-        player.rotateRight();
-        break;
-    case 'c':
-    case 'C':
-        // Alternar distância da câmera
-        cameraDistance = (cameraDistance == 5.0f) ? 2.0f : 5.0f;
+    case 'p':
+        shareScreenshot(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
+        sound.playAudio(16, volume.UI);
         break;
     case ' ':
-        // Atacar
         if (player.attack())
         {
-            std::cout << "Atacando!" << std::endl;
-
-            for (auto &object : gameObjects)
-            {
+            static bool isAttacking = false;
+            static float attackProgress = 0.1f;
+            const float attackSpeed = 0.2f;
+            for (auto &object : gameObjects){
                 Enemy *enemy = dynamic_cast<Enemy *>(object.get());
-                if (enemy && enemy->isActive())
-                {
+                if (enemy && enemy->isActive()){
                     float dx = enemy->getX() - player.getX();
                     float dz = enemy->getZ() - player.getZ();
                     float dist = std::sqrt(dx * dx + dz * dz);
-
                     if (dist < 2.0f)
                     {
-                        enemy->takeDamage(player.getAttackDamage());
-                        std::cout << "Dano causado em inimigo: " << player.getAttackDamage() << std::endl;
+                        isAttacking = true;
+                        attackProgress = 0.0f;
+                        enemy->takeDamage(player.getAttackDamage() * 0.8f, AttackType::PHYSICAL);
+                        sound.playAudio(2, volume.efeitos);
+                        break;
+                    }
+                }
+                Boss *cat = dynamic_cast<Boss *>(object.get());
+                if (cat && cat->isActive()){
+                    float dx = cat->getX() - player.getX();
+                    float dz = cat->getZ() - player.getZ();
+                    float dist = std::sqrt(dx * dx + dz * dz);
+                    if (dist < 2.0f) {
+                        isAttacking = true;
+                        attackProgress = 0.0f;
+                        cat->takeDamage(player.getAttackDamage() * 0.7f, AttackType::PHYSICAL);
+                        sound.playAudio(2, volume.efeitos);
+                        break;
                     }
                 }
             }
         }
-        break;
-    case '1':
-        // Ataque alternativo
-        if (gameMode == 1 && player.attack())
-        {
-            std::cout << "Ataque Especial!" << std::endl;
 
-            for (auto &object : gameObjects)
-            {
+    case 'x':
+        if (player.attack()){
+            for (auto &object : gameObjects){
                 Enemy *enemy = dynamic_cast<Enemy *>(object.get());
-                if (enemy && enemy->isActive())
-                {
+                if (enemy && enemy->isActive()){
                     float dx = enemy->getX() - player.getX();
                     float dz = enemy->getZ() - player.getZ();
                     float dist = std::sqrt(dx * dx + dz * dz);
-
-                    if (dist < 3.0f)
-                    {                                                   // Alcance maior
-                        float damage = player.getAttackDamage() * 1.5f; // Dano aumentado
-                        enemy->takeDamage(damage);
-                        std::cout << "Dano crítico causado: " << damage << std::endl;
+                    if (dist < 4.0f){
+                        sound.playAudio(14, volume.efeitos);
+                        float damage = player.getAttackDamage() * 0.5f;
+                        enemy->takeDamage(damage, AttackType::FIRE);
+                    }
+                }
+                Boss *boss = dynamic_cast<Boss *>(object.get());
+                if (boss && boss->isActive()){
+                    float dx = boss->getX() - player.getX();
+                    float dz = boss->getZ() - player.getZ();
+                    float dist = std::sqrt(dx * dx + dz * dz);
+                    if (dist < 3.0f){
+                        isAttacking = true;
+                        attackProgress = 0.0f;
+                        boss->takeDamage(player.getAttackDamage() * 0.4f, AttackType::PHYSICAL);
+                        sound.playAudio(2, volume.efeitos);
+                        break;
                     }
                 }
             }
         }
         break;
+
     case 'k':
-    case 'K': // K
-        // Alternar para o menu de habilidades
-        gameMode = (gameMode == 2) ? 0 : 2;
+        sound.playAudio(5, volume.UI);
+        gameMode = (gameMode == STATE_GAME::SKILL_TREE)
+                       ? STATE_GAME::PLAYING_EXPLORER
+                       : STATE_GAME::SKILL_TREE;
         break;
-    case 27: // ESC
+
+    case 9: // Tecla TAB
+        sound.playAudio(5, volume.UI);
+        gameMode = (gameMode == STATE_GAME::MENU) ? STATE_GAME::PLAYING_EXPLORER : STATE_GAME::MENU;
+        break;
+
+    case 27: // Tecla ESC
         exit(0);
+        break;
+
+    default:
         break;
     }
 }
@@ -1603,28 +1663,506 @@ void Game::handleSpecialKeyPress(int key, int x, int y)
         if (cameraHeight < 0.5f)
             cameraHeight = 0.5f;
         break;
+    case 112:
+        player.toggleRunning();
+        break;
     }
 }
 
-// Adicionar estes métodos à classe Game
-void Game::handleMouseClick(int button, int state, int x, int y)
+void Game::handleJoystick(unsigned int btn, int x, int y, int z)
 {
+    static unsigned int previousButtonMask = 0;
+    unsigned int buttonMask = btn;
+    static int currentNodeIndex = 0;
+    static int hoverIndexButton = 0;
+
+    hud.setHoveredButton(hoverIndexButton);
+
+    if ((x != 0 || y != 0) && (gameMode == STATE_GAME::COMBAT || gameMode == STATE_GAME::PLAYING_EXPLORER))
+    {
+        sound.playAudioRepeter(7, volume.ambient);
+    }
+    else
+    {
+        sound.stopAudioRepeter(7);
+    }
+
+    float normalizedX = static_cast<float>(x) / 32768.0f;
+    float normalizedY = static_cast<float>(y) / 32768.0f;
+    float normalizedZ = static_cast<float>(z) / 32768.0f;
+    float moveSpeed = 3.0f;
+    float deltaX = normalizedX * moveSpeed;
+    float deltaZ = -normalizedY * moveSpeed;
+
+    if (gameMode == STATE_GAME::TOP_VIEW_MAP)
+    {
+        float panSpeed = 0.2f;
+        camera.updatePanWithMouse(deltaX * panSpeed * 500, -deltaZ * panSpeed * 500);
+    }
+    if (gameMode == STATE_GAME::PLAYING_EXPLORER || gameMode == STATE_GAME::COMBAT)
+    {
+        float camAngleRad = camera.getRotationY();
+        float forwardX = sin(camAngleRad);
+        float forwardZ = cos(camAngleRad);
+        float rightX = -cos(camAngleRad);
+        float rightZ = sin(camAngleRad);
+
+        float speed = player.getMovementSpeed() * 10.0f;
+        float moveX = (deltaX * rightX + deltaZ * forwardX) * speed;
+        float moveZ = (deltaX * rightZ + deltaZ * forwardZ) * speed;
+
+        player.setPosition(player.getX() + moveX, player.getY(), player.getZ() + moveZ);
+        camera.setPosX(player.getX());
+        camera.setPosZ(player.getZ());
+        camera.setRotationY(camera.getRotationY() + (-normalizedZ));
+    }
+    if (!skillNodes.empty() && gameMode == STATE_GAME::SKILL_TREE)
+    {
+        const auto &node = skillNodes[currentNodeIndex];
+
+        skillTooltip.visible = true;
+        skillTooltip.showConfirmation = true;
+        skillTooltip.skillIndex = node.skillIndex;
+        skillTooltip.x = node.x + 20;
+        skillTooltip.y = node.y - skillTooltip.height / 2;
+
+        int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
+        int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+
+        if (skillTooltip.x + skillTooltip.width > windowWidth)
+            skillTooltip.x = windowWidth - skillTooltip.width - 10;
+        if (skillTooltip.y < 10)
+            skillTooltip.y = 10;
+        else if (skillTooltip.y + skillTooltip.height > windowHeight)
+            skillTooltip.y = windowHeight - skillTooltip.height - 10;
+    }
+
+    if ((buttonMask & JOYSTICK_DOWN) && !(previousButtonMask & JOYSTICK_DOWN))
+    {
+        std::cout << "Botão DOWN pressionado." << std::endl;
+    }
+    else if (!(buttonMask & JOYSTICK_DOWN) && (previousButtonMask & JOYSTICK_DOWN))
+    {
+        std::cout << "Botão DOWN liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_X) && !(previousButtonMask & JOYSTICK_X))
+    {
+        if ((gameMode == STATE_GAME::COMBAT || gameMode == STATE_GAME::PLAYING_EXPLORER))
+        {
+            if (player.attack())
+            {
+                static bool isAttacking = false;
+                static float attackProgress = 0.1f;
+                const float attackSpeed = 0.2f;
+                for (auto &object : gameObjects)
+                {
+                    Enemy *enemy = dynamic_cast<Enemy *>(object.get());
+                    if (enemy && enemy->isActive())
+                    {
+                        float dx = enemy->getX() - player.getX();
+                        float dz = enemy->getZ() - player.getZ();
+                        float dist = std::sqrt(dx * dx + dz * dz);
+                        if (dist < 2.0f)
+                        {
+                            isAttacking = true;
+                            attackProgress = 0.0f;
+                            enemy->takeDamage(player.getAttackDamage(), AttackType::PHYSICAL);
+                            sound.playAudio(2, volume.efeitos);
+                            break;
+                        }
+                    }
+                    Boss *boss = dynamic_cast<Boss *>(object.get());
+                    if (boss && boss->isActive())
+                    {
+                        float dx = boss->getX() - player.getX();
+                        float dz = boss->getZ() - player.getZ();
+                        float dist = std::sqrt(dx * dx + dz * dz);
+                        if (dist < 2.0f)
+                        {
+                            isAttacking = true;
+                            attackProgress = 0.0f;
+                            boss->takeDamage(player.getAttackDamage() * 0.9f, AttackType::PHYSICAL);
+                            sound.playAudio(2, volume.efeitos);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (gameMode == STATE_GAME::SKILL_TREE)
+        {
+            if (skillTooltip.visible && skillTooltip.showConfirmation)
+            {
+                sound.playAudio(5, volume.UI);
+                const auto &skills = player.getSkillTree().getSkills();
+                std::string skillName = skills[skillTooltip.skillIndex]->getName();
+                if (player.getSkillTree().useSkillPoint(skillName))
+                {
+                    sound.playAudio(10, volume.UI);
+                }
+                skillTooltip.visible = false;
+            }
+        }
+        if (gameMode == STATE_GAME::MENU || gameMode == STATE_GAME::GAME_OVER)
+        {
+            sound.playAudio(5, volume.UI);
+            if (hoverIndexButton >= 0 && hoverIndexButton < static_cast<int>(hud.getButtonMenu().size()))
+            {
+                button_action = hud.getButtonMenu()[hoverIndexButton].destino;
+
+                switch (button_action)
+                {
+                case ACTION_BUTTON::EXIT:
+                    exit(0);
+                    break;
+                case ACTION_BUTTON::VOLUME_AMBIENT_DECREASE:
+                    volume.ambient = std::max(0.0f, volume.ambient - 0.05f);
+                    break;
+                case ACTION_BUTTON::VOLUME_AMBIENT_INCREASE:
+                    volume.ambient = std::min(1.0f, volume.ambient + 0.05f);
+                    break;
+                case ACTION_BUTTON::VOLUME_EFFECTS_DECREASE:
+                    volume.efeitos = std::max(0.0f, volume.efeitos - 0.05f);
+                    break;
+                case ACTION_BUTTON::VOLUME_EFFECTS_INCREASE:
+                    volume.efeitos = std::min(1.0f, volume.efeitos + 0.05f);
+                    break;
+                case ACTION_BUTTON::VOLUME_MUSIC_DECREASE:
+                    volume.musica = std::max(0.0f, volume.musica - 0.05f);
+                    break;
+                case ACTION_BUTTON::VOLUME_MUSIC_INCREASE:
+                    volume.musica = std::min(1.0f, volume.musica + 0.05f);
+                    break;
+                case ACTION_BUTTON::VOLUME_UI_DECREASE:
+                    volume.UI = std::max(0.0f, volume.UI - 0.05f);
+                    break;
+
+                case ACTION_BUTTON::VOLUME_UI_INCREASE:
+                    volume.UI = std::min(1.0f, volume.UI + 0.05f);
+                    break;
+                case ACTION_BUTTON::RESET_ALL:
+                    gameObjects.clear();
+                    player.reset();
+                    player.setPosition(0.0f, getTerrainHeight(0.0f, 0.0f) + 0.3f, 0.0f);
+                    initObjects();
+                    gameMode = STATE_GAME::PLAYING_EXPLORER;
+                    currentMap = MapType::MAIN;
+                    button_action = ACTION_BUTTON::NONE;
+                    break;
+
+                default:
+                    break;
+                }
+
+                sound.setVolume(0, volume.musica);
+                sound.setVolume(1, volume.musica);
+                sound.setVolume(2, volume.efeitos);
+                sound.setVolume(3, volume.efeitos);
+                sound.setVolume(4, volume.efeitos);
+                sound.setVolume(5, volume.UI);
+                sound.setVolume(6, volume.ambient);
+                sound.setVolume(7, volume.ambient);
+                sound.setVolume(8, volume.ambient);
+                sound.setVolume(9, volume.ambient);
+                sound.setVolume(10, volume.musica);
+                sound.setVolume(11, volume.musica);
+                sound.setVolume(12, volume.UI);
+                sound.setVolume(13, volume.UI);
+                sound.setVolume(14, volume.efeitos);
+                sound.setVolume(15, volume.musica);
+                sound.setVolume(16, volume.UI);
+                sound.setVolume(17, volume.efeitos);
+                sound.setVolume(18, volume.efeitos);
+                sound.setVolume(19, volume.musica);
+                sound.setVolume(20, volume.musica);
+                sound.setVolume(21, volume.efeitos);
+            }
+        }
+    }
+    else if (!(buttonMask & JOYSTICK_X) && (previousButtonMask & JOYSTICK_X))
+    {
+        std::cout << "Botão X liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_CIRCLE) && !(previousButtonMask & JOYSTICK_CIRCLE))
+    {
+        for (auto &obj : gameObjects)
+        {
+            Portal *portal = dynamic_cast<Portal *>(obj.get());
+            if (portal && portal->playerIsNearby(player))
+            {
+                if (!isAnyEnemyActive && inimigos == 0)
+                {
+                    showPortalMessage = true;
+                    portal->teleport(player, *this);
+                    break;
+                }
+                else
+                {
+                    showPortalMessage = false;
+                    if (!sound.isAudioPlaying(3))
+                    {
+                        sound.playAudio(3, volume.efeitos);
+                    }
+                }
+            }
+        }
+    }
+    else if (!(buttonMask & JOYSTICK_CIRCLE) && (previousButtonMask & JOYSTICK_CIRCLE))
+    {
+        std::cout << "Botão CIRCLE liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_TRIANGLE) && !(previousButtonMask & JOYSTICK_TRIANGLE) && gameMode != STATE_GAME::TOP_VIEW_MAP)
+    {
+        if (gameMode == STATE_GAME::SKILL_TREE)
+        {
+            sound.playAudio(5, volume.UI);
+            gameMode = STATE_GAME::PLAYING_EXPLORER;
+        }
+        else
+        {
+            sound.playAudio(5, volume.UI);
+            gameMode = STATE_GAME::SKILL_TREE;
+        }
+    }
+    else if (!(buttonMask & JOYSTICK_TRIANGLE) && (previousButtonMask & JOYSTICK_TRIANGLE))
+    {
+        std::cout << "Botão TRIANGLE liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_QUAD) && !(previousButtonMask & JOYSTICK_QUAD))
+    {
+        if (currentMap == MapType::BOSS || gameMode == STATE_GAME::COMBAT)
+        {
+            if (player.attack())
+            {
+                for (auto &object : gameObjects)
+                {
+                    Boss *boss = dynamic_cast<Boss *>(object.get());
+                    if (boss && boss->isActive())
+                    {
+                        float dx = boss->getX() - player.getX();
+                        float dz = boss->getZ() - player.getZ();
+                        float dist = std::sqrt(dx * dx + dz * dz);
+                        if (dist < 4.0f)
+                        {
+                            isAttacking = true;
+                            attackProgress = 0.0f;
+                            boss->takeDamage(player.getAttackDamage() * 0.4f, AttackType::FIRE);
+                            sound.playAudio(14, volume.efeitos);
+                        }
+                    }
+                    Enemy *enemy = dynamic_cast<Enemy *>(object.get());
+                    if (enemy && enemy->isActive())
+                    {
+                        float dx = enemy->getX() - player.getX();
+                        float dz = enemy->getZ() - player.getZ();
+                        float dist = std::sqrt(dx * dx + dz * dz);
+                        if (dist < 4.0f)
+                        {
+                            isAttacking = true;
+                            attackProgress = 0.0f;
+                            enemy->takeDamage(player.getAttackDamage() * 0.6f, AttackType::FIRE);
+                            sound.playAudio(14, volume.efeitos);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else if (!(buttonMask & JOYSTICK_QUAD) && (previousButtonMask & JOYSTICK_QUAD))
+    {
+        std::cout << "Botão QUAD liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_L1) && !(previousButtonMask & JOYSTICK_L1))
+    {
+        hoverIndexButton = (hoverIndexButton > 0) ? hoverIndexButton - 1 : hud.getButtonMenu().size() - 1;
+    }
+    else if (!(buttonMask & JOYSTICK_L1) && (previousButtonMask & JOYSTICK_L1))
+    {
+        std::cout << "Botão L1 liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_R1) && !(previousButtonMask & JOYSTICK_R1))
+    {
+        hoverIndexButton = (hoverIndexButton < hud.getButtonMenu().size() - 1) ? hoverIndexButton + 1 : 0;
+    }
+    else if (!(buttonMask & JOYSTICK_R1) && (previousButtonMask & JOYSTICK_R1))
+    {
+        std::cout << "Botão R1 liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_L3) && !(previousButtonMask & JOYSTICK_L3))
+    {
+        player.setSpeed((player.getMovementSpeed() < 0.1f) ? 0.13f : 0.08f);
+        std::cout << player.getMovementSpeed() << std::endl;
+    }
+    else if (!(buttonMask & JOYSTICK_L3) && (previousButtonMask & JOYSTICK_L3))
+    {
+    }
+
+    if ((buttonMask & JOYSTICK_R3) && !(previousButtonMask & JOYSTICK_R3))
+    {
+        std::cout << "Botão R3 pressionado." << std::endl;
+    }
+    else if (!(buttonMask & JOYSTICK_R3) && (previousButtonMask & JOYSTICK_R3))
+    {
+        std::cout << "Botão R3 liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_START) && !(previousButtonMask & JOYSTICK_START))
+    {
+        int width = glutGet(GLUT_WINDOW_WIDTH);
+        int height = glutGet(GLUT_WINDOW_HEIGHT);
+        shareScreenshot(width, height);
+        sound.playAudio(16, volume.UI);
+    }
+    else if (!(buttonMask & JOYSTICK_START) && (previousButtonMask & JOYSTICK_START))
+    {
+        std::cout << "Botão START liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_R2))
+    {
+        if (gameMode == STATE_GAME::TOP_VIEW_MAP)
+        {
+            camera.updateTopDownZoom(+1);
+        }
+        if (gameMode == STATE_GAME::COMBAT || gameMode == STATE_GAME::PLAYING_EXPLORER)
+        {
+            camera.updateZoom(+1);
+        }
+        if (gameMode == STATE_GAME::SKILL_TREE && !(previousButtonMask & JOYSTICK_R2))
+        {
+            sound.playAudio(5, volume.UI);
+            currentNodeIndex = (currentNodeIndex - 1 + skillNodes.size()) % skillNodes.size();
+        }
+    }
+
+    if ((buttonMask & JOYSTICK_OPT) && !(previousButtonMask & JOYSTICK_OPT) && gameMode != STATE_GAME::TOP_VIEW_MAP)
+    {
+        sound.playAudio(5, volume.UI);
+        gameMode = (gameMode == STATE_GAME::MENU) ? STATE_GAME::PLAYING_EXPLORER : STATE_GAME::MENU;
+    }
+    else if (!(buttonMask & JOYSTICK_OPT) && (previousButtonMask & JOYSTICK_OPT))
+    {
+        std::cout << "Botão OPT liberado." << std::endl;
+    }
+
+    if ((buttonMask & JOYSTICK_L2))
+    {
+        if (gameMode == STATE_GAME::TOP_VIEW_MAP)
+        {
+            camera.updateTopDownZoom(-1);
+        }
+        if (gameMode == STATE_GAME::PLAYING_EXPLORER || gameMode == STATE_GAME::COMBAT)
+        {
+            camera.updateZoom(-1);
+        }
+        if (gameMode == STATE_GAME::SKILL_TREE && !(previousButtonMask & JOYSTICK_L2))
+        {
+            sound.playAudio(5, volume.UI);
+            currentNodeIndex = (currentNodeIndex + 1) % skillNodes.size();
+        }
+    }
+
+    if ((buttonMask & JOYSTICK_ICON_BUTTON) && !(previousButtonMask & JOYSTICK_ICON_BUTTON))
+    {
+        std::cout << "Botão ICON_BUTTON pressionado." << std::endl;
+    }
+    else if (!(buttonMask & JOYSTICK_ICON_BUTTON) && (previousButtonMask & JOYSTICK_ICON_BUTTON))
+    {
+        exit(0);
+    }
+
+    if ((buttonMask & JOYSTICK_TOUCH) && !(previousButtonMask & JOYSTICK_TOUCH))
+    {
+        sound.playAudio(5, volume.UI);
+        camera.toggleTopDown(gameMode);
+    }
+    else if (!(buttonMask & JOYSTICK_TOUCH) && (previousButtonMask & JOYSTICK_TOUCH))
+    {
+        std::cout << "Botão TOUCH liberado." << std::endl;
+    }
+
+    previousButtonMask = buttonMask;
+}
+
+void Game::handleMouseClick(int button, int state, int x, int y){
     lastMouseX = x;
     lastMouseY = y;
-
-    if (button == GLUT_LEFT_BUTTON)
-    {
+    if (button == GLUT_LEFT_BUTTON){
         mouseLeftDown = (state == GLUT_DOWN);
-
-        // Verificar clique na árvore de habilidades
-        if (mouseLeftDown && gameMode == 2)
-        {
+        if (mouseLeftDown && gameMode == STATE_GAME::SKILL_TREE)
             checkSkillTreeClick(x, y);
-        }
+        if (this->getGameMode() == STATE_GAME::MENU ||
+            this->getGameMode() == STATE_GAME::GAME_OVER)
+            handleButtonMenuClick(x, y);
     }
     else if (button == GLUT_RIGHT_BUTTON)
     {
         mouseRightDown = (state == GLUT_DOWN);
+    }
+    if (button == 3)
+    {
+        if (gameMode == STATE_GAME::TOP_VIEW_MAP)
+            camera.updateTopDownZoom(+1);
+        else
+            camera.updateZoom(+1);
+    }
+    else if (button == 4)
+    {
+        if (gameMode == STATE_GAME::TOP_VIEW_MAP)
+            camera.updateTopDownZoom(-1);
+        else
+            camera.updateZoom(-1);
+    }
+}
+
+void Game::updateMoviment()
+{
+    isMoving = false;
+
+    if (keyStates['w'])
+    {
+        player.moveForward();
+        isMoving = true;
+    }
+    if (keyStates['s'])
+    {
+        player.moveBackward();
+        isMoving = true;
+    }
+    if (keyStates['a'])
+    {
+        player.strafeRight();
+        isMoving = true;
+    }
+    if (keyStates['d'])
+    {
+        player.strafeLeft();
+        isMoving = true;
+    }
+    if (keyStates['q'])
+    {
+        player.rotateLeft();
+    }
+    if (keyStates['e'])
+    {
+        player.rotateRight();
+    }
+    if (isMoving && !isSoundPlaying)
+    {
+        sound.playAudioRepeter(7, volume.ambient);
+        isSoundPlaying = true;
+    }
+    else if (!isMoving && isSoundPlaying)
+    {
+        sound.stopAudioRepeter(7);
+        isSoundPlaying = false;
     }
 }
 
@@ -1632,25 +2170,31 @@ void Game::handleMouseMotion(int x, int y)
 {
     int deltaX = x - lastMouseX;
     int deltaY = y - lastMouseY;
+    int directionX = (deltaX > 0) ? 1 : (deltaX < 0) ? -1
+                                                     : 0;
+    int directionY = (deltaY > 0) ? 1 : (deltaY < 0) ? -1
+                                                     : 0;
+    float zoomSpeed = 0.05f;
 
-    if (mouseRightDown)
+    if (mouseRightDown && (gameMode == STATE_GAME::COMBAT || gameMode == STATE_GAME::PLAYING_EXPLORER))
     {
-        // Rotacionar a câmera com o mouse direito
-        player.rotateRight(deltaX * mouseSensitivity);
-
-        // Ajustar altura da câmera com movimento vertical do mouse
-        cameraHeight -= deltaY * mouseSensitivity * 0.05f;
-        if (cameraHeight < 0.5f)
-            cameraHeight = 0.5f;
-        if (cameraHeight > 5.0f)
-            cameraHeight = 5.0f;
+        player.rotateRight(-deltaX * mouseSensitivity);
+        camera.adjustHeight(-deltaY);
+    }
+    if (mouseRightDown && gameMode == STATE_GAME::TOP_VIEW_MAP)
+    {
+        const int width = glutGet(GLUT_WINDOW_WIDTH);
+        const int height = glutGet(GLUT_WINDOW_HEIGHT);
+        const int panX = -deltaX / 2;
+        const int panY = -deltaY / 2;
+        camera.updatePanWithMouse(panX, panY);
     }
 
-    if (gameMode == 2)
-    {
-        // Atualizar estado de hover nos nós da árvore de habilidades
+    if (gameMode == STATE_GAME::SKILL_TREE)
         updateSkillNodeHover(x, y);
-    }
+    if (this->getGameMode() == STATE_GAME::MENU ||
+        this->getGameMode() == STATE_GAME::GAME_OVER)
+        updateButtonMenuHover(x, y);
 
     lastMouseX = x;
     lastMouseY = y;
@@ -1661,39 +2205,34 @@ void Game::handlePassiveMouseMotion(int x, int y)
     lastMouseX = x;
     lastMouseY = y;
 
-    if (gameMode == 2)
-    {
-        // Atualizar estado de hover nos nós da árvore de habilidades
+    if (gameMode == STATE_GAME::SKILL_TREE)
         updateSkillNodeHover(x, y);
-    }
+    if (this->getGameMode() == STATE_GAME::MENU)
+        updateButtonMenuHover(x, y);
 }
 
 void Game::checkSkillTreeClick(int x, int y)
 {
     int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
-    y = windowHeight - y; // Inverter coordenada Y para corresponder ao nosso sistema
-
-    // Verificar se clicou no botão de confirmação, se a tooltip estiver visível
-    if (skillTooltip.visible && skillTooltip.showConfirmation)
-    {
-        // Verificar se clicou no botão "Sim"
+    y = windowHeight - y; 
+    if (skillTooltip.visible && skillTooltip.showConfirmation){
+        sound.playAudio(5, volume.UI);
         if (x >= skillTooltip.x + 30 &&
             x <= skillTooltip.x + 100 &&
             y >= skillTooltip.y + 20 &&
             y <= skillTooltip.y + 45)
         {
-
+            sound.playAudio(5, volume.UI);
             const auto &skills = player.getSkillTree().getSkills();
             std::string skillName = skills[skillTooltip.skillIndex]->getName();
             if (player.getSkillTree().useSkillPoint(skillName))
             {
-                std::cout << "Habilidade melhorada: " << skillName << std::endl;
+                sound.playAudio(10, volume.efeitos);
             }
             skillTooltip.visible = false;
             return;
         }
 
-        // Verificar se clicou no botão "Não"
         if (x >= skillTooltip.x + 150 &&
             x <= skillTooltip.x + 220 &&
             y >= skillTooltip.y + 20 &&
@@ -1705,7 +2244,6 @@ void Game::checkSkillTreeClick(int x, int y)
         }
     }
 
-    // Verificar clique em uma habilidade para mostrar a tooltip
     for (const auto &node : skillNodes)
     {
         float dx = x - node.x;
@@ -1714,14 +2252,11 @@ void Game::checkSkillTreeClick(int x, int y)
 
         if (distSq < node.radius * node.radius)
         {
-            // Mostrar tooltip
             skillTooltip.visible = true;
             skillTooltip.skillIndex = node.skillIndex;
-            skillTooltip.x = x + 20; // Posicionar a tooltip ao lado do mouse
+            skillTooltip.x = x + 20; 
             skillTooltip.y = y - skillTooltip.height / 2;
             skillTooltip.showConfirmation = true;
-
-            // Garantir que a tooltip fique dentro da tela
             int windowWidth = glutGet(GLUT_WINDOW_WIDTH);
             if (skillTooltip.x + skillTooltip.width > windowWidth)
                 skillTooltip.x = windowWidth - skillTooltip.width - 10;
@@ -1734,15 +2269,121 @@ void Game::checkSkillTreeClick(int x, int y)
             return;
         }
     }
-
-    // Se clicou fora dos nós e fora dos botões, fechar a tooltip
     skillTooltip.visible = false;
+}
+
+void Game::handleKeyUp(unsigned char key, int x, int y)
+{
+    key = std::tolower(key);
+    keyStates[key] = false;
+}
+
+void Game::handleButtonMenuClick(int x, int y)
+{
+    int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+    float mouseYGL = windowHeight - y;
+
+    for (auto &botao : hud.getButtonMenu())
+    {
+        bool dentroX = x >= botao.x && x <= (botao.x + botao.width);
+        bool dentroY = mouseYGL >= botao.y && mouseYGL <= (botao.y + botao.height);
+
+        if (dentroX && dentroY)
+        {
+            sound.playAudio(5, volume.UI);
+            button_action = botao.destino;
+            float volumeChange = 0.05f;
+            bool volumeChanged = false;
+
+            switch (button_action)
+            {
+            case ACTION_BUTTON::EXIT:
+                exit(0);
+                break;
+
+            case ACTION_BUTTON::VOLUME_AMBIENT_DECREASE:
+                volume.ambient = std::max(0.0f, volume.ambient - volumeChange);
+                volumeChanged = true;
+                break;
+
+            case ACTION_BUTTON::VOLUME_AMBIENT_INCREASE:
+                volume.ambient = std::min(1.0f, volume.ambient + volumeChange);
+                volumeChanged = true;
+                break;
+
+            case ACTION_BUTTON::VOLUME_EFFECTS_DECREASE:
+                volume.efeitos = std::max(0.0f, volume.efeitos - volumeChange);
+                volumeChanged = true;
+                break;
+
+            case ACTION_BUTTON::VOLUME_EFFECTS_INCREASE:
+                volume.efeitos = std::min(1.0f, volume.efeitos + volumeChange);
+                volumeChanged = true;
+                break;
+
+            case ACTION_BUTTON::VOLUME_MUSIC_DECREASE:
+                volume.musica = std::max(0.0f, volume.musica - volumeChange);
+                volumeChanged = true;
+                break;
+
+            case ACTION_BUTTON::VOLUME_MUSIC_INCREASE:
+                volume.musica = std::min(1.0f, volume.musica + volumeChange);
+                volumeChanged = true;
+                break;
+
+            case ACTION_BUTTON::VOLUME_UI_DECREASE:
+                volume.UI = std::max(0.0f, volume.UI - volumeChange);
+                volumeChanged = true;
+                break;
+
+            case ACTION_BUTTON::VOLUME_UI_INCREASE:
+                volume.UI = std::min(1.0f, volume.UI + volumeChange);
+                volumeChanged = true;
+                break;
+            case ACTION_BUTTON::RESET_ALL:
+                gameObjects.clear();
+                player.reset();
+                player.setPosition(0.0f, getTerrainHeight(0.0f, 0.0f) + 0.3f, 0.0f);
+                initObjects();
+                gameMode = STATE_GAME::PLAYING_EXPLORER;
+                currentMap = MapType::MAIN;
+                button_action = ACTION_BUTTON::NONE;
+                break;
+            }
+
+            if (volumeChanged)
+            {
+                sound.setVolume(0, volume.musica);
+                sound.setVolume(1, volume.musica);
+                sound.setVolume(2, volume.efeitos);
+                sound.setVolume(3, volume.efeitos);
+                sound.setVolume(4, volume.efeitos);
+                sound.setVolume(5, volume.UI);
+                sound.setVolume(6, volume.ambient);
+                sound.setVolume(7, volume.ambient);
+                sound.setVolume(8, volume.ambient);
+                sound.setVolume(9, volume.ambient);
+                sound.setVolume(10, volume.musica);
+                sound.setVolume(11, volume.musica);
+                sound.setVolume(12, volume.UI);
+                sound.setVolume(13, volume.UI);
+                sound.setVolume(14, volume.efeitos);
+                sound.setVolume(15, volume.musica);
+                sound.setVolume(16, volume.UI);
+                sound.setVolume(17, volume.efeitos);
+                sound.setVolume(18, volume.efeitos);
+                sound.setVolume(19, volume.musica);
+                sound.setVolume(20, volume.musica);
+                sound.setVolume(21, volume.efeitos);
+            }
+        }
+    }
 }
 
 void Game::updateSkillNodeHover(int x, int y)
 {
     int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
-    y = windowHeight - y; // Inverter coordenada Y
+    y = windowHeight - y;
 
     for (auto &node : skillNodes)
     {
@@ -1754,90 +2395,207 @@ void Game::updateSkillNodeHover(int x, int y)
     }
 }
 
-// Getters e setters
-Player& Game::getPlayer() {
-    return player;
-}
-
-int Game::getGameMode() const {
-    return gameMode;
-}
-
-void Game::setGameMode(int mode) {
-    gameMode = mode;
-}
-
-// Responders de eventos
-void Game::mouseCallback(int button, int state, int x, int y)
+void Game::saveScreenshotBMP(const char *filename, int width, int height)
 {
-    GetInstance().handleMouseClick(button, state, x, y);
+    FILE *file = fopen(filename, "wb");
+    if (!file)
+    {
+        printf("Erro ao abrir o arquivo para salvar.\n");
+        return;
+    }
+    int padding = (4 - (width * 3) % 4) % 4;
+    int rowSize = width * 3 + padding;
+    int imageSize = rowSize * height;
+
+    BMPHeader bmpHeader = {
+        {'B', 'M'},
+        static_cast<unsigned int>(54 + imageSize),
+        0,
+        0,
+        54};
+
+    BMPInfoHeader bmpInfoHeader = {
+        40,
+        width,
+        height,
+        1,
+        24,
+        0,
+        static_cast<unsigned int>(imageSize),
+        2835,
+        2835,
+        0,
+        0};
+
+    fwrite(&bmpHeader, sizeof(BMPHeader), 1, file);
+    fwrite(&bmpInfoHeader, sizeof(BMPInfoHeader), 1, file);
+
+    std::vector<GLubyte> pixels(3 * width * height);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+    std::vector<GLubyte> rotatedPixels(3 * width * height);
+
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            int srcPos = (y * width + x) * 3;
+
+            int destPos = ((height - 1 - y) * width + (width - 1 - x)) * 3;
+
+            rotatedPixels[destPos] = pixels[srcPos + 2];     // B
+            rotatedPixels[destPos + 1] = pixels[srcPos + 1]; // G
+            rotatedPixels[destPos + 2] = pixels[srcPos];     // R
+        }
+    }
+
+    unsigned char padBytes[3] = {0, 0, 0};
+
+    for (int y = 0; y < height; y++)
+    {
+        fwrite(&rotatedPixels[y * width * 3], 3, width, file);
+
+        if (padding > 0)
+        {
+            fwrite(padBytes, 1, padding, file);
+        }
+    }
+
+    fclose(file);
 }
 
-void Game::motionCallback(int x, int y)
+void Game::shareScreenshot(int width, int height)
 {
-    GetInstance().handleMouseMotion(x, y);
+    time_t now = time(nullptr);
+    struct tm *t = localtime(&now);
+    char filename[128];
+    strftime(filename, sizeof(filename), "screenshot_%Y_%m_%d_%H-%M-%S.bmp", t);
+
+    saveScreenshotBMP(filename, width, height);
+}
+void Game::updateButtonMenuHover(int x, int y)
+{
+    int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
+    float mouseYGL = windowHeight - y; 
+
+    int hoveredID = -1;
+
+    for (size_t i = 0; i < hud.getButtonMenu().size(); ++i)
+    {
+        auto &botao = hud.getButtonMenu()[i];
+        float bx = botao.x;
+        float by = botao.y;
+        float bw = botao.width;
+        float bh = botao.height;
+
+        bool dentroX = (x >= bx && x <= (bx + bw));
+        bool dentroY = (mouseYGL >= by && mouseYGL <= (by + bh));
+
+        botao.hovering = dentroX && dentroY;
+        if (botao.hovering)
+            hoveredID = static_cast<int>(i);
+    }
+
+    hud.setHoveredButton(hoveredID);
 }
 
-void Game::passiveMotionCallback(int x, int y)
+void Game::init()
 {
-    GetInstance().handlePassiveMouseMotion(x, y);
+    if (!sound.initOpenAL())
+    {
+        return;
+    }
+    else
+    {
+        sound.carregarAudios(
+            {
+                "omnia_poetree_theme.wav",        // 0
+                "city_of_ingrigues.wav",          // 1
+                "punch.wav",                      // 2
+                "swipe.wav",                      // 3
+                "classiccoin.wav",                // 4
+                "one_beep.wav",                   // 5
+                "birds_backgorund.wav",           // 6
+                "walk-on-grass.wav",              // 7
+                "dark-void-ambience.wav",         // 8
+                "ambient-dark-2.wav",             // 9
+                "up-habilidade.wav",              // 10
+                "bury-the-light-deep-within.wav", // 11
+                "horror.wav",                     // 12
+                "no-enemie.wav",                  // 13
+                "espacial-attack.wav",            // 14
+                "cat_meme.wav",                   // 15
+                "print_window.wav",               // 16
+                "step.wav",                       // 17
+                "pum.wav",                        // 18
+                "bomfire.wav",                    // 19
+                "game_over.wav",                  // 20
+                "thankyou.wav"                    // 21
+            });
+    }
 }
+
+Player &Game::getPlayer() { return player; }
+STATE_GAME Game::getGameMode() const { return gameMode; }
+void Game::setGameMode(STATE_GAME mode) { gameMode = mode; }
+void Game::initCallback() { GetInstance().init(); }
+void Game::mouseCallback(int button, int state, int x, int y) { GetInstance().handleMouseClick(button, state, x, y); }
+void Game::motionCallback(int x, int y) { GetInstance().handleMouseMotion(x, y); }
+void Game::passiveMotionCallback(int x, int y) { GetInstance().handlePassiveMouseMotion(x, y); }
 void Game::displayCallback()
 {
     GetInstance().render();
     glutSwapBuffers();
 }
-
-void Game::reshapeCallback(int w, int h)
-{
-    glViewport(0, 0, w, h);
-}
-
-void Game::keyboardCallback(unsigned char key, int x, int y)
-{
-    GetInstance().handleKeyPress(key, x, y);
-}
+void Game::reshapeCallback(int w, int h) { glViewport(0, 0, w, h); }
+void Game::keyboardCallback(unsigned char key, int x, int y) { GetInstance().handleKeyPress(key, x, y); }
 
 void Game::specialCallback(int key, int x, int y)
 {
     GetInstance().handleSpecialKeyPress(key, x, y);
 }
 
+void Game::KeyUpCallback(unsigned char key, int x, int y)
+{
+    GetInstance().handleKeyUp(key, x, y);
+}
+void Game::JoystickCallback(unsigned int key, int x, int y, int z)
+{
+    GetInstance().handleJoystick(key, x, y, z);
+}
+
 void Game::timerCallback(int value)
 {
     GetInstance().update();
     glutPostRedisplay();
-    glutTimerFunc(16, timerCallback, 0); // 60 FPS aproximadamente
+    glutTimerFunc(16, timerCallback, 0);
 }
 
-// Singleton para facilitar callbacks
 Game &Game::GetInstance()
 {
     static Game instance;
     return instance;
 }
 
-float Game::getTerrainHeight(float x, float z) {
+float Game::getTerrainHeight(float x, float z)
+{
     float height = 0.0f;
 
-    // Colinas suaves
     height += std::sin(x * 0.1f) * 0.5f;
     height += std::cos(z * 0.1f) * 0.5f;
-
-    // Ruído sutil
     height += (std::sin(x * 0.3f + z * 0.5f) * 0.3f);
 
-    // Lista de centros de lagos
     std::vector<std::pair<float, float>> lakeCenters = {
         {5.0f, 5.0f},
         {-7.0f, -3.0f},
         {8.0f, -6.0f},
-        {-4.0f, 7.0f}
-    };
+        {-4.0f, 7.0f}};
 
-    for (const auto& center : lakeCenters) {
-        float dist = std::sqrt((x - center.first)*(x - center.first) + (z - center.second)*(z - center.second));
-        if (dist < 3.5f) {
+    for (const auto &center : lakeCenters)
+    {
+        float dist = std::sqrt((x - center.first) * (x - center.first) + (z - center.second) * (z - center.second));
+        if (dist < 3.5f)
+        {
             height -= (3.5f - dist) * 0.4f;
         }
     }
