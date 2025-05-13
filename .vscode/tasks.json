@@ -6,15 +6,6 @@
       "type": "shell",
       "command": "g++",
       "args": [
-<<<<<<< HEAD
-        "main1.cpp",   
-        "-I${workspaceFolder}/include",   
-        "-o",
-        "main.exe",
-        "-L${workspaceFolder}/lib",           
-        "-lopengl32",              
-        "-lglu32",                 
-=======
         "main.cpp",   
         "-I${workspaceFolder}/include",
         "-o",
@@ -23,7 +14,6 @@
         "-lopengl32",
         "-lOpenAL32",
         "-lglu32",
->>>>>>> dev
         "-lfreeglut"
       ],
       "group": {
