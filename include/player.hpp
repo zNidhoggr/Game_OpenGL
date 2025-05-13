@@ -75,6 +75,7 @@ public:
     float getAttackCooldown() const;
     float getAttackTimer() const;
     float getAttackDamage() const;
+    float getAttackDamageMagic() const;
     float getMovementSpeed() const;
 
     void reset();

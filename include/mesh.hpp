@@ -115,7 +115,7 @@ struct Mesh
 
                 while (iss >> vertice_str)
                 {
-                    std::replace(vertice_str.begin(), vertice_str.end(), '/', ' '); // Substitui '/' por espaços
+                    std::replace(vertice_str.begin(), vertice_str.end(), '/', ' ');
                     std::istringstream viss(vertice_str);
                     unsigned int v, t, n;
                     viss >> v >> t >> n;

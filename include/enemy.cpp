@@ -2,7 +2,7 @@
 
 Enemy::Enemy(float x, float y, float z, float size, int level)
     : GameObject(x, y, z, size, ObjectType::ENEMY),
-      health(80.0f * level), maxHealth(100.0f * level),
+      health(100.0f * level), maxHealth(100.0f * level),
       level(level), moveSpeed(0.05f), attackDamage(5.0f * level),
       attackRange(1.0f), attackCooldown(2.0f), attackTimer(0.0f),
       detectionRange(5.0f), isCombatActive(false) {}

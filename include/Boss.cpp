@@ -5,13 +5,13 @@
 
 Boss::Boss(float x, float y, float z, float size, int level)
     : GameObject(x, y, z, size, ObjectType::BOSS),
-      health(2000.0f * level), maxHealth(4000.0f * level),
+      health(2000.0f * level), maxHealth(2000.0f * level),
       level(level), moveSpeed(0.025f),
       attackDamage(30.0f * level), attackRange(1.0f), attackCooldown(1.0f),
       attackTimer(0.0f), specialAttackCooldown(8.0f), specialAttackTimer(0.0f),
       enraged(false), enragedThreshold(0.3f),
       detectionRange(30.0f), isCombatActive(false),
-      experienceGiven(false), experienceValue(100.0f * level),
+      experienceGiven(false), experienceValue(200.0f * level),
       timer(0.0f), toggle(false), toggleCount(0), toggleInterval(1.60f),
       pauseTimer(0.0f), paused(false), level_two(0)
 {

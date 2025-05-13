@@ -80,7 +80,7 @@ void init()
     Light::initLight();
 
     texturaJogador = loadTexture("src/textures/player.png");
-    texturaJogadorCabeca = loadTexture("src/textures/player.png");
+    texturaJogadorCabeca = loadTexture("src/textures/geraldo.png");
     texturaGrama = loadTexture("src/textures/grass.png");
     texturaPortal = loadTexture("src/textures/portal.png");
     texturaParaside = loadTexture("src/textures/grass.png");
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
     glutInitWindowSize(800, 600);
     glutInitWindowPosition(100, 100);
     glutCreateWindow("RPG DA SHOPEE");
-    glutFullScreen(); 
+    // glutFullScreen(); 
     init();
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);

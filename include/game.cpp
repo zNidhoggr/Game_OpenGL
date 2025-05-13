@@ -863,6 +863,7 @@ void Game::update()
     }
     if (currentMap == MapType::PARASIDE && gameMode != STATE_GAME::GAME_OVER)
     {
+        player.setHealth(player.getMaxHealth());
         if (!sound.isAudioPlaying(19))
         {
             sound.playAudioRepeter(19, volume.musica);

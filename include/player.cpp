@@ -9,8 +9,8 @@ extern unsigned int texturaJogadorCabeca;
 
 Player::Player(float x, float y, float z)
     : GameObject(x, y, z, 0.3f, ObjectType::NPC),
-      rotY(0.0f), health(10000.0f), maxHealth(10000.0f),
-      level(50), experience(0), experienceToNextLevel(100),
+      rotY(0.0f), health(150.0f), maxHealth(150.0f),
+      level(1), experience(0), experienceToNextLevel(100),
       attackCooldown(1.0f), attackTimer(0.0f), 
       upPressed(false), downPressed(false),
       leftPressed(false), rightPressed(false),
@@ -124,11 +124,13 @@ void Player::draw()
 
     glPushMatrix();
     glTranslatef(0.0f, size + 0.2f, 0.0f); 
+    glRotatef(115.0f, 0.0f, 0.0f, 1.0f);
+    glRotatef(75.0f, 0.0f, 1.0f, 0.0f);
     
     GLUquadric* headQuad = gluNewQuadric();
     gluQuadricTexture(headQuad, GL_TRUE);
     gluQuadricNormals(headQuad, GLU_SMOOTH);
-    gluSphere(headQuad, 0.2f, 24, 24);
+    gluSphere(headQuad, 0.3f, 24, 24);
     gluDeleteQuadric(headQuad);
     
     glPopMatrix();
@@ -268,8 +270,13 @@ int Player::getExperienceToNextLevel() const { return experienceToNextLevel; }
 float Player::getAttackCooldown() const { return attackCooldown; }
 float Player::getAttackTimer() const { return attackTimer; }
 float Player::getAttackDamage() const{
-    float baseAttack = 300.0f;
+    float baseAttack = 30.0f;
     float attackBonus = skillTree.getSkillValue(ATTACK);
+    return baseAttack + attackBonus;
+}
+float Player::getAttackDamageMagic() const{
+    float baseAttack = 30.0f;
+    float attackBonus = skillTree.getSkillValue(SkillType::MAGIC);
     return baseAttack + attackBonus;
 }
 
