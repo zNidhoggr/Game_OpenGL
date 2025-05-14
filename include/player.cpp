@@ -9,7 +9,7 @@ extern unsigned int texturaJogadorCabeca;
 
 Player::Player(float x, float y, float z)
     : GameObject(x, y, z, 0.3f, ObjectType::NPC),
-      rotY(0.0f), health(150.0f), maxHealth(150.0f),
+      rotY(0.0f), health(100.0f), maxHealth(100.0f),
       level(1), experience(0), experienceToNextLevel(100),
       attackCooldown(1.0f), attackTimer(0.0f), 
       upPressed(false), downPressed(false),

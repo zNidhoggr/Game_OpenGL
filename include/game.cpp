@@ -2473,6 +2473,7 @@ void Game::shareScreenshot(int width, int height)
 
     saveScreenshotBMP(filename, width, height);
 }
+
 void Game::updateButtonMenuHover(int x, int y)
 {
     int windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
